@@ -50,6 +50,7 @@ export default function HomePage() {
         <div>
             <section style={{marginBottom: "7rem"}}>
 
+                0.9.2-rc1
                 {/* 1. 인프라 설명 */}
                 <div>
                     <div>

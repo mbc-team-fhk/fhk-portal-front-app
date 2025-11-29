@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fhk-portal-front-app
-  namespace: dev
+  namespace: staging
   labels:
     app: fhk-portal-front-app
 spec:

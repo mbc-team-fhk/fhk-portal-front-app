@@ -1,16 +1,13 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App";
-import { AuthProvider } from "./context/AuthContext";
-import "./index.css";
+import { BrowserRouter } from 'react-router-dom'
+import ReactDOM from 'react-dom/client'
+import App from './App'
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-    <React.StrictMode>
-        <BrowserRouter>
-            <AuthProvider>
-                <App />
-            </AuthProvider>
-        </BrowserRouter>
-    </React.StrictMode>
-);
+const basePath = import.meta.env.VITE_BASE_PATH || '/'
+// "/"면 basename 안 주는 게 자연스러움
+const basename = basePath === '/' ? undefined : basePath.replace(/\/$/, '')
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+    <BrowserRouter basename={basename}>
+        <App />
+    </BrowserRouter>
+)
