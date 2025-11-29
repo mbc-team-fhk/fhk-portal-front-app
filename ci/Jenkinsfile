@@ -17,13 +17,12 @@ pipeline {
             steps {
                 checkout scm
                 sh 'git fetch --tags || true'
- 
+
                 script {
-                    env.BRANCH_NAME = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
-                    echo "Detected branch: ${env.BRANCH_NAME}"
+                    // origin/staging, origin/prod 같은 값에서 마지막 토큰만 가져옴
+                    def gitBranch = env.GIT_BRANCH ?: ''
+                    env.BRANCH_NAME = gitBranch.tokenize('/').last()
+                    echo "GIT_BRANCH=${gitBranch}, BRANCH_NAME=${env.BRANCH_NAME}"
                 }
             }
         }
