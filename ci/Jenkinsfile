@@ -126,14 +126,16 @@ pipeline {
                     // 여기서는 k8s manifest 안의 image를 latest로 두고,
                     // 방금 latest를 새 태그로 덮어쓴다는 전제로 간다.
                     // (원하면 sed로 태그 치환해서 적용하는 방식도 가능)
-                    sh """
-                      kubectl -n ${k8sNamespace} apply -f ${k8sDir}/deployment.yaml
-                      kubectl -n ${k8sNamespace} apply -f ${k8sDir}/service.yaml
-                      kubectl -n ${k8sNamespace} apply -f ${k8sDir}/ingress.yaml
+                    withEnv(["KUBECONFIG=/var/lib/jenkins/.kube/config"]) {
+                        sh """
+                          kubectl -n ${k8sNamespace} apply -f ${k8sDir}/deployment.yaml
+                          kubectl -n ${k8sNamespace} apply -f ${k8sDir}/service.yaml
+                          kubectl -n ${k8sNamespace} apply -f ${k8sDir}/ingress.yaml
 
-                      kubectl -n ${k8sNamespace} rollout restart deployment fhk-portal-front-app
-                      kubectl -n ${k8sNamespace} rollout status deployment fhk-portal-front-app --timeout=120s
-                    """
+                          kubectl -n ${k8sNamespace} rollout restart deployment fhk-portal-front-app
+                          kubectl -n ${k8sNamespace} rollout status deployment fhk-portal-front-app --timeout=120s
+                        """
+                    }
                 }
             }
         }
