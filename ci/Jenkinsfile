@@ -1,0 +1,147 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME        = 'fhk-portal-front-app'
+        REGISTRY        = 'juno6800'
+        IMAGE           = "${REGISTRY}/${APP_NAME}"
+        DOCKERFILE_PATH = 'infra/docker/Dockerfile'
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git fetch --tags || true'
+ 
+                script {
+                    env.BRANCH_NAME = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
+                    echo "Detected branch: ${env.BRANCH_NAME}"
+                }
+            }
+        }
+
+        stage('Install dependencies') {
+            steps {
+                sh '''
+                  npm ci || npm install
+                '''
+            }
+        }
+
+        stage('Build (Vite)') {
+            steps {
+                sh 'npm run build'
+            }
+        }
+
+        stage('Docker build & push (tagged only)') {
+            steps {
+                script {
+                    // 현재 커밋에 정확히 달린 태그 조회
+                    def tag = sh(
+                        script: "git describe --tags --exact-match 2>/dev/null || echo NO_TAG",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${tag}"
+
+                    // 1) dev 브랜치는 무조건 스킵
+                    if (env.BRANCH_NAME == 'dev') {
+                        echo "dev 브랜치 -> Docker build & push 스킵"
+                        return
+                    }
+
+                    // 2) 태그가 없으면 스킵 (staging/prod라도)
+                    if (tag == 'NO_TAG') {
+                        echo "태그 없음 -> Docker build & push 스킵"
+                        return
+                    }
+
+                    // 3) 태그 있음 → 이 태그로 이미지 빌드
+                    env.IMAGE_TAG = tag
+
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-cred',
+                        usernameVariable: 'DOCKERHUB_USER',
+                        passwordVariable: 'DOCKERHUB_PASS'
+                    )]) {
+                        sh """
+                          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+                          docker build \\
+                            -f ${DOCKERFILE_PATH} \\
+                            -t ${IMAGE}:${env.IMAGE_TAG} \\
+                            -t ${IMAGE}:latest \\
+                            .
+
+                          docker push ${IMAGE}:${env.IMAGE_TAG}
+                          docker push ${IMAGE}:latest
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to k3s (staging/prod, tagged only)') {
+            steps {
+                script {
+                    def tag = sh(
+                        script: "git describe --tags --exact-match 2>/dev/null || echo NO_TAG",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${tag}"
+
+                    // dev 브랜치 또는 태그 없는 커밋이면 배포 스킵
+                    if (env.BRANCH_NAME == 'dev' || tag == 'NO_TAG') {
+                        echo "dev 브랜치이거나 태그 없음 -> 배포 스킵"
+                        return
+                    }
+
+                    // 브랜치에 따른 namespace / manifest 경로 결정
+                    String k8sNamespace
+                    String k8sDir
+
+                    if (env.BRANCH_NAME == 'staging') {
+                        k8sNamespace = 'staging'
+                        k8sDir = 'infra/k3s/staging'
+                        // 원하면 여기에서 tag 패턴 체크 (예: -rc 포함 여부)
+                        // if (!tag.contains('-rc')) { echo "RC 태그 아님 -> 스킵"; return }
+                    } else if (env.BRANCH_NAME == 'prod') {
+                        k8sNamespace = 'prod'
+                        k8sDir = 'infra/k3s/prod'
+                    } else {
+                        echo "지원하지 않는 브랜치 -> 배포 스킵"
+                        return
+                    }
+
+                    // 여기서는 k8s manifest 안의 image를 latest로 두고,
+                    // 방금 latest를 새 태그로 덮어쓴다는 전제로 간다.
+                    // (원하면 sed로 태그 치환해서 적용하는 방식도 가능)
+                    sh """
+                      kubectl -n ${k8sNamespace} apply -f ${k8sDir}/deployment.yaml
+                      kubectl -n ${k8sNamespace} apply -f ${k8sDir}/service.yaml
+                      kubectl -n ${k8sNamespace} apply -f ${k8sDir}/ingress.yaml
+
+                      kubectl -n ${k8sNamespace} rollout restart deployment fhk-portal-front-app
+                      kubectl -n ${k8sNamespace} rollout status deployment fhk-portal-front-app --timeout=120s
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
