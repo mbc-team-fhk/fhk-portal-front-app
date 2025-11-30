@@ -9,24 +9,13 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - www.fhk-team.org
-        - fhk-team.org
+        - qa.fhk-team.org
       secretName: fhk-team-org-tls
   rules:
-    - host: www.fhk-team.org
+    - host: qa.fhk-team.org
       http:
         paths:
-          - path: /qa
-            pathType: Prefix
-            backend:
-              service:
-                name: fhk-portal-front-app
-                port:
-                  number: 80
-    - host: fhk-team.org
-      http:
-        paths:
-          - path: /qa
+          - path: /
             pathType: Prefix
             backend:
               service:
