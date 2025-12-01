@@ -38,14 +38,7 @@ pipeline {
         stage('Build (Vite)') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == 'staging') {
-                        env.VITE_BASE_PATH = '/qa/'
-                    } else if (env.BRANCH_NAME == 'prod') {
-                        env.VITE_BASE_PATH = '/'
-                    } else {
-                        env.VITE_BASE_PATH = '/'
-                    }
-
+                    env.VITE_BASE_PATH = '/'
                     echo "VITE_BASE_PATH=${env.VITE_BASE_PATH}"
                     sh 'npm run build'
                 }
