@@ -11,7 +11,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const API_BASE = ""; // 같은 도메인에서 /auth, /api 로 프록시된다고 가정
+const API_BASE = "/api/security"; // 같은 도메인에서 /auth, /api 로 프록시된다고 가정
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                                                                           children,

@@ -1,4 +1,3 @@
-// src/pages/PingHealthPage.tsx
 import { useState } from "react";
 
 type HealthResult = {
@@ -10,14 +9,17 @@ type HealthResult = {
     at: string;
 };
 
+// /api/** 라우팅 -> BFF
+// BFF 에서는 해당 url 을 받으면
+//  -> http://서비스명(fhk-ticketing-member-service):8080/endpoint 로 요청
 const SERVICES = [
-    { key: "security", name: "fhk-security-server", url: "/fhk-security-server/actuator/health" },
+    { key: "security", name: "fhk-security-server", url: "/api/security/actuator/health" },
 
-    { key: "member", name: "fhk-ticketing-member-service", url: "/fhk-ticketing-member-service/actuator/health" },
-    { key: "movie", name: "fhk-ticketing-movie-service", url: "/fhk-ticketing-movie-service/actuator/health" },
-    { key: "reservation", name: "fhk-ticketing-reservation-service", url: "/fhk-ticketing-reservation-service/actuator/health" },
-    { key: "payment", name: "fhk-ticketing-payment-service", url: "/fhk-ticketing-payment-service/actuator/health" },
-    { key: "ticket", name: "fhk-ticketing-ticket-service", url: "/fhk-ticketing-ticket-service/actuator/health" },
+    { key: "member", name: "fhk-ticketing-member-service", url: "/api/ticketing-member/actuator/health" },
+    { key: "movie", name: "fhk-ticketing-movie-service", url: "/api/ticketing-movie/actuator/health" },
+    { key: "reservation", name: "fhk-ticketing-reservation-service", url: "/api/ticketing-reservation/actuator/health" },
+    { key: "payment", name: "fhk-ticketing-payment-service", url: "/api/ticketing-payment/actuator/health" },
+    { key: "ticket", name: "fhk-ticketing-ticket-service", url: "/api/ticketing-ticket/actuator/health" },
 ] as const;
 
 async function fetchHealth(url: string): Promise<HealthResult> {
@@ -208,11 +210,6 @@ export default function PingHealthPage() {
                         </div>
                     );
                 })}
-            </div>
-
-            <div style={{ marginTop: "1rem", fontSize: 12, color: "#666" }}>
-                주의: 브라우저가 직접 서비스 DNS/ClusterIP로 붙는 구조면 CORS/네트워크 때문에 실패한다.
-                보통은 Ingress(또는 BFF)에서 위 경로들을 프록시해줘야 브라우저에서 호출 가능.
             </div>
         </div>
     );
