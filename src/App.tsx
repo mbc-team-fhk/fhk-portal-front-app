@@ -1,5 +1,5 @@
 // App.tsx
-import { Routes, Route } from "react-router-dom";
+import {Routes, Route} from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import HomePage from "./pages/HomePage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -12,14 +12,14 @@ import PingHealthPage from "./pages/PingHealthPage";
 function App() {
     return (
         <Routes>
-            <Route element={<MainLayout />}>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/contact" element={<TeamPage />} />
-                <Route path="/architecture" element={<ArchitecturePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/auth/callback" element={<LoginCallbackPage />} />
-                <Route path="/health" element={<PingHealthPage />} />
+            <Route element={<MainLayout/>}>
+                <Route path="/" element={<HomePage/>}/>
+                <Route path="/projects" element={<ProjectsPage/>}/>
+                <Route path="/contact" element={<TeamPage/>}/>
+                <Route path="/architecture" element={<ArchitecturePage/>}/>
+                <Route path="/login" element={<LoginPage/>}/>
+                <Route path="/auth/callback" element={<LoginCallbackPage/>}/>
+                <Route path="/pingtest" element={<PingHealthPage/>}/>
             </Route>
         </Routes>
     );
