@@ -7,6 +7,7 @@ import TeamPage from "./pages/TeamPage";
 import ArchitecturePage from "./pages/ArchitecturePage";
 import LoginPage from "./pages/LoginPage";
 import LoginCallbackPage from "./pages/LoginCallbackPage";
+import PingHealthPage from "./pages/PingHealthPage";
 
 function App() {
     return (
@@ -18,6 +19,7 @@ function App() {
                 <Route path="/architecture" element={<ArchitecturePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/auth/callback" element={<LoginCallbackPage />} />
+                <Route path="/health" element={<PingHealthPage />} />
             </Route>
         </Routes>
     );
