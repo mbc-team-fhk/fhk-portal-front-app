@@ -15,6 +15,13 @@ spec:
     - host: qa.fhk-team.org
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: fhk-bff-server
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:
