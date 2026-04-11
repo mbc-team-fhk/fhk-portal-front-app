@@ -58,7 +58,6 @@ export default function HomePage() {
 
                     <div style={{fontSize: "2rem", fontWeight: 700, marginTop: "2rem"}}>
                         컨테이너 오케스트레이션 기반 지속적 개발·통합·배포 인프라 구현
-                        11111111111111111111111111111111111111111111111빵야
                     </div>
                     <div style={{fontSize: "1.2rem", fontWeight: 200, marginBottom: "2rem"}}>
                         Building a CI/CD infrastructure based on container orchestration.
