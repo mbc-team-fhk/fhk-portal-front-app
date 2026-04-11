@@ -80,6 +80,7 @@ pipeline {
                           echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
 
                           docker build \\
+                            --build-arg VITE_APP_VERSION=${env.IMAGE_TAG} \\
                             -f ${DOCKERFILE_PATH} \\
                             -t ${IMAGE}:${env.IMAGE_TAG} \\
                             -t ${IMAGE}:latest \\
