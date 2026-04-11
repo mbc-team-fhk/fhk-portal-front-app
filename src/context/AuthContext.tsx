@@ -5,7 +5,7 @@ interface AuthContextValue {
     user: User | null;
     isAuthenticated: boolean;
     loading: boolean;
-    login: (username: string, password: string) => Promise<void>;
+    login: (loginId: string, loginPw: string) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -40,12 +40,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchMe();
     }, []);
 
-    const login = async (username: string, password: string) => {
+    const login = async (loginId: string, loginPw: string) => {
         const res = await fetch(`${API_BASE}/auth/login`, {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ loginId, loginPw }),
         });
 
         if (!res.ok) {
