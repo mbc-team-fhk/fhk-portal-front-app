@@ -39,8 +39,16 @@ pipeline {
             steps {
                 script {
                     env.VITE_BASE_PATH = '/'
+                    env.VITE_APP_VERSION = env.IMAGE_TAG
+
+                    echo "VITE_APP_VERSION=${env.VITE_APP_VERSION}"
                     echo "VITE_BASE_PATH=${env.VITE_BASE_PATH}"
-                    sh 'npm run build'
+
+                    sh '''
+                      export VITE_BASE_PATH="${VITE_BASE_PATH}"
+                      export VITE_APP_VERSION="${VITE_APP_VERSION}"
+                      npm run build
+                    '''
                 }
             }
         }
@@ -80,7 +88,6 @@ pipeline {
                           echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
 
                           docker build \\
-                            --build-arg VITE_APP_VERSION=${env.IMAGE_TAG} \\
                             -f ${DOCKERFILE_PATH} \\
                             -t ${IMAGE}:${env.IMAGE_TAG} \\
                             -t ${IMAGE}:latest \\
