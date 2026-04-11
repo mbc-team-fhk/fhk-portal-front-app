@@ -3,6 +3,8 @@ import { useAuth } from "../../context/AuthContext";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 
+const appVersion = import.meta.env.VITE_APP_VERSION || "dev";
+
 const linkStyle: CSSProperties = {
     textDecoration: "none",
     color: "#333",
@@ -66,8 +68,25 @@ export function Header() {
                     justifyContent: "space-between",
                 }}
             >
-                <Link to="/" style={{...linkStyle, fontWeight: 700, fontSize: "1.1rem"}}>
-                    FHK <div className="text-sm text-gray-500">v{import.meta.env.VITE_APP_VERSION}</div>
+                <Link
+                    to="/"
+                    style={{
+                        ...linkStyle,
+                        fontWeight: 700,
+                        fontSize: "1.1rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                    }}
+                >
+                    <span>FHK</span>
+                    <span style={{
+                            fontSize: "0.8rem",
+                            color: "#6b7280",
+                            fontWeight: 400,
+                        }}>
+                    v{appVersion}
+                    </span>
                 </Link>
                 <nav style={{display: "flex", gap: "1rem", alignItems: "center" }}>
                     <NavLink
