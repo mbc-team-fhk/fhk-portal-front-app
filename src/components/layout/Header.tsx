@@ -66,10 +66,10 @@ export function Header() {
                     justifyContent: "space-between",
                 }}
             >
-                <Link to="/" style={{ ...linkStyle, fontWeight: 700, fontSize: "1.1rem" }}>
-                    FHK
+                <Link to="/" style={{...linkStyle, fontWeight: 700, fontSize: "1.1rem"}}>
+                    FHK <div className="text-sm text-gray-500">v{import.meta.env.VITE_APP_VERSION}</div>
                 </Link>
-                <nav style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                <nav style={{display: "flex", gap: "1rem", alignItems: "center" }}>
                     <NavLink
                         to="/"
                         style={({ isActive }) => ({
