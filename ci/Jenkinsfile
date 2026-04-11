@@ -22,6 +22,12 @@ pipeline {
                     // origin/staging, origin/prod 같은 값에서 마지막 토큰만 가져옴
                     def gitBranch = env.GIT_BRANCH ?: ''
                     env.BRANCH_NAME = gitBranch.tokenize('/').last()
+
+                    env.IMAGE_TAG = sh(
+                        script: "git describe --tags --exact-match 2>/dev/null || echo NO_TAG",
+                        returnStdout: true
+                    ).trim()
+
                     echo "GIT_BRANCH=${gitBranch}, BRANCH_NAME=${env.BRANCH_NAME}"
                 }
             }
@@ -39,7 +45,11 @@ pipeline {
             steps {
                 script {
                     env.VITE_BASE_PATH = '/'
-                    env.VITE_APP_VERSION = env.IMAGE_TAG
+                    if (env.IMAGE_TAG == 'NO_TAG') {
+                        env.VITE_APP_VERSION = 'dev'
+                    } else {
+                        env.VITE_APP_VERSION = env.IMAGE_TAG
+                    }
 
                     echo "VITE_APP_VERSION=${env.VITE_APP_VERSION}"
                     echo "VITE_BASE_PATH=${env.VITE_BASE_PATH}"
@@ -56,13 +66,7 @@ pipeline {
         stage('Docker build & push (tagged only)') {
             steps {
                 script {
-                    // 현재 커밋에 정확히 달린 태그 조회
-                    def tag = sh(
-                        script: "git describe --tags --exact-match 2>/dev/null || echo NO_TAG",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${tag}"
+                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${env.IMAGE_TAG}"
 
                     // 1) dev 브랜치는 무조건 스킵
                     if (env.BRANCH_NAME == 'dev') {
@@ -71,13 +75,10 @@ pipeline {
                     }
 
                     // 2) 태그가 없으면 스킵 (staging/prod라도)
-                    if (tag == 'NO_TAG') {
+                    if (env.IMAGE_TAG == 'NO_TAG') {
                         echo "태그 없음 -> Docker build & push 스킵"
                         return
                     }
-
-                    // 3) 태그 있음 → 이 태그로 이미지 빌드
-                    env.IMAGE_TAG = tag
 
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-cred',
@@ -104,15 +105,10 @@ pipeline {
         stage('Deploy to k3s (staging/prod, tagged only)') {
             steps {
                 script {
-                    def tag = sh(
-                        script: "git describe --tags --exact-match 2>/dev/null || echo NO_TAG",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${tag}"
+                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${env.IMAGE_TAG}"
 
                     // dev 브랜치 또는 태그 없는 커밋이면 배포 스킵
-                    if (env.BRANCH_NAME == 'dev' || tag == 'NO_TAG') {
+                    if (env.BRANCH_NAME == 'dev' || env.IMAGE_TAG == 'NO_TAG') {
                         echo "dev 브랜치이거나 태그 없음 -> 배포 스킵"
                         return
                     }
