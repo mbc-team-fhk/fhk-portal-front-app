@@ -1031,3 +1031,57 @@ button, input {
   font-size: 0.9rem;
   font-weight: 800;
 }
+
+
+.app-bootstrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--background, #f5f7fb);
+}
+
+.app-bootstrap-panel {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
+.app-bootstrap-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid rgba(37, 99, 235, 0.18);
+  border-top-color: var(--primary);
+  animation: app-bootstrap-spin 0.8s linear infinite;
+}
+
+.app-bootstrap-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.app-shell-ready {
+  animation: app-fade-in 0.22s ease;
+}
+
+@keyframes app-bootstrap-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
