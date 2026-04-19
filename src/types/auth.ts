@@ -1,7 +1,8 @@
 export interface User {
-    id: string;
-    name: string;
-    roles: string[];
+    accountId: number;
+    loginId: string;
+    nickname: string;
+    role: string;
 }
 
 export interface LoginRequest {

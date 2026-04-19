@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "../types/auth";
+import type {ApiResponse} from "../types/wrapper.ts";
 
 interface AuthContextValue {
     user: User | null;
@@ -11,7 +12,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const API_BASE = "/api/security"; // 같은 도메인에서 /auth, /api 로 프록시된다고 가정
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"; // BFF base URL
+const API_PREFIX = "/api/security";
+const API_ROUTING_URL = API_BASE + API_PREFIX;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                                                                           children,
@@ -19,29 +22,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // 최초 마운트 시 현재 로그인 상태 확인
+    const fetchMe = async (): Promise<User | null> => {
+        const res = await fetch(`${API_ROUTING_URL}/auth/me`, {
+            credentials: "include",
+        });
+
+        if (!res.ok) {
+            return null;
+        }
+
+        const data: ApiResponse<User> = await res.json();
+
+        if (!data.isSuccess || !data.result) {
+            return null;
+        }
+
+        return data.result;
+    };
+
+
+    /**
+     * 최초 마운트시 본인확인후 정보 불러오기
+      */
     useEffect(() => {
-        const fetchMe = async () => {
+        const initializeAuth = async () => {
             try {
-                const res = await fetch(`${API_BASE}/auth/me`, {
-                    credentials: "include",
-                });
-                if (res.ok) {
-                    const data: User = await res.json();
-                    setUser(data);
-                }
+                const me = await fetchMe();
+                setUser(me);
             } catch (e) {
-                // ignore
+                console.log(e);
+                setUser(null);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchMe();
+        initializeAuth();
     }, []);
 
+
     const login = async (loginId: string, loginPw: string) => {
-        const res = await fetch(`${API_BASE}/auth/login`, {
+        const res = await fetch(`${API_ROUTING_URL}/auth/login`, {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
@@ -52,18 +73,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             throw new Error("로그인 실패");
         }
 
-        const data: User = await res.json();
-        setUser(data);
+        const me = await fetchMe();
+        if (!me) {
+            throw new Error("로그인 후 사용자 정보 조회 실패");
+        }
+
+        setUser(me);
     };
 
     const logout = async () => {
         try {
-            await fetch(`${API_BASE}/auth/logout`, {
+            await fetch(`${API_ROUTING_URL}/auth/logout`, {
                 method: "POST",
                 credentials: "include",
             });
         } catch (e) {
-            // ignore
+            console.log(e);
         } finally {
             setUser(null);
         }
