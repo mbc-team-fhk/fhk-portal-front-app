@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "../types/auth";
-import type {ApiResponse} from "../types/wrapper.ts";
+import type { ApiResponse } from "../types/wrapper.ts";
 
 interface AuthContextValue {
     user: User | null;
@@ -12,13 +12,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"; // BFF base URL
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const API_PREFIX = "/api/security";
 const API_ROUTING_URL = API_BASE + API_PREFIX;
+const AUTH_HINT_KEY = "fhk_portal_authenticated";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-                                                                          children,
-                                                                      }) => {
+    children,
+}) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -40,18 +41,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return data.result;
     };
 
-
-    /**
-     * 최초 마운트시 본인확인후 정보 불러오기
-      */
     useEffect(() => {
         const initializeAuth = async () => {
+            const hasAuthHint = window.localStorage.getItem(AUTH_HINT_KEY) === "true";
+
+            if (!hasAuthHint) {
+                setLoading(false);
+                return;
+            }
+
             try {
                 const me = await fetchMe();
-                setUser(me);
-            } catch (e) {
-                console.log(e);
+
+                if (me) {
+                    setUser(me);
+                } else {
+                    setUser(null);
+                    window.localStorage.removeItem(AUTH_HINT_KEY);
+                }
+            } catch {
                 setUser(null);
+                window.localStorage.removeItem(AUTH_HINT_KEY);
             } finally {
                 setLoading(false);
             }
@@ -59,7 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         initializeAuth();
     }, []);
-
 
     const login = async (loginId: string, loginPw: string) => {
         const res = await fetch(`${API_ROUTING_URL}/auth/login`, {
@@ -70,11 +79,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         if (!res.ok) {
+            window.localStorage.removeItem(AUTH_HINT_KEY);
             throw new Error("로그인 실패");
         }
 
+        window.localStorage.setItem(AUTH_HINT_KEY, "true");
+
         const me = await fetchMe();
         if (!me) {
+            window.localStorage.removeItem(AUTH_HINT_KEY);
             throw new Error("로그인 후 사용자 정보 조회 실패");
         }
 
@@ -87,9 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 method: "POST",
                 credentials: "include",
             });
-        } catch (e) {
-            console.log(e);
         } finally {
+            window.localStorage.removeItem(AUTH_HINT_KEY);
             setUser(null);
         }
     };
