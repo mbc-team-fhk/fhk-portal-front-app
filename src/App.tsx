@@ -8,7 +8,7 @@ import LoginCallbackPage from "./pages/LoginCallbackPage";
 import PingHealthPage from "./pages/PingHealthPage";
 import AboutPage from "./pages/AboutPage";
 import FeaturesPage from "./pages/FeaturesPage";
-import MePage from "./pages/MePage";
+import MyPage from "./pages/MyPage";
 import ScrollManager from "./components/common/ScrollManager";
 
 function App() {
@@ -22,10 +22,13 @@ function App() {
                     <Route path="/features" element={<FeaturesPage />} />
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/contact" element={<TeamPage />} />
-                    <Route path="/me" element={<MePage />} />
+                    <Route path="/myPage" element={<MyPage />} />
+                    <Route path="/my" element={<Navigate to="/myPage" replace />} />
+                    <Route path="/me" element={<Navigate to="/myPage" replace />} />
                     <Route path="/architecture" element={<Navigate to="/about#architecture" replace />} />
                     <Route path="/login" element={<LoginPage />} />
-                    <Route path="/auth/callback" element={<LoginCallbackPage />} />
+                    <Route path="/auth/callback" element={<Navigate to="/login" replace />} />
+                    <Route path="/redirect/:provider" element={<LoginCallbackPage />} />
                     <Route path="/pingtest" element={<PingHealthPage />} />
                 </Route>
             </Routes>

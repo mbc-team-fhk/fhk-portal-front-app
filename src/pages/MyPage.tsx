@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 
-export default function MePage() {
+export default function MyPage() {
     const { user, isAuthenticated, loading } = useAuth();
 
     if (loading) {
