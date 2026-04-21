@@ -1,7 +1,13 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { securityGet, securityPost } from "../../utils/securityApi";
+import {
+    beginGoogleRedirectLogin,
+    beginKakaoRedirectLogin,
+    consumePendingSocialRedirect,
+    resolvePendingSocialRedirect,
+} from "../../utils/socialAuth";
+import type { SocialProvider } from "../../types/socialAuth";
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -10,12 +16,15 @@ interface LoginModalProps {
 
 type ModalMode = "signin" | "signup" | "social-signup";
 type AvailabilityState = "idle" | "invalid" | "checking" | "available" | "duplicate";
+type GlobalMessageTone = "error" | "success" | "info";
 
 type AvailabilityResponse = {
     available: boolean;
 };
 
 const TESTER_TOOLTIP_TEXT = "포트폴리오 시연용 계정으로 바로 로그인합니다.";
+const TESTER_LOGIN_ID = "tester01";
+const TESTER_LOGIN_PASSWORD = "tester1234";
 
 function isValidLoginId(value: string) {
     return /^[A-Za-z][A-Za-z0-9]{5,19}$/.test(value);
@@ -52,12 +61,17 @@ function readErrorMessage(error: unknown, fallback: string) {
     return fallback;
 }
 
+function sanitizeNicknameSeed(value: string) {
+    const normalized = value.replace(/[^A-Za-z0-9가-힣]/g, "").trim();
+    return normalized.slice(0, 16);
+}
+
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const { login } = useAuth();
-    const navigate = useNavigate();
     const [mode, setMode] = useState<ModalMode>("signin");
     const [submitting, setSubmitting] = useState(false);
-    const [globalError, setGlobalError] = useState("");
+    const [globalMessage, setGlobalMessage] = useState("");
+    const [globalMessageTone, setGlobalMessageTone] = useState<GlobalMessageTone>("error");
 
     const [signinId, setSigninId] = useState("");
     const [signinPassword, setSigninPassword] = useState("");
@@ -70,9 +84,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [signupNicknameState, setSignupNicknameState] = useState<AvailabilityState>("idle");
 
     const [socialAccount, setSocialAccount] = useState("");
-    const [socialProvider, setSocialProvider] = useState<"kakao" | "google" | null>(null);
+    const [socialProvider, setSocialProvider] = useState<SocialProvider | null>(null);
+    const [socialProviderUserId, setSocialProviderUserId] = useState("");
     const [socialNickname, setSocialNickname] = useState("");
     const [socialNicknameState, setSocialNicknameState] = useState<AvailabilityState>("idle");
+
+    const signupIdRequestRef = useRef(0);
+    const signupNicknameRequestRef = useRef(0);
+    const socialNicknameRequestRef = useRef(0);
+    const handledRedirectRef = useRef(false);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -97,7 +117,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         if (!isOpen) {
             setMode("signin");
             setSubmitting(false);
-            setGlobalError("");
+            setGlobalMessage("");
+            setGlobalMessageTone("error");
             setSigninId("");
             setSigninPassword("");
             setSignupId("");
@@ -108,9 +129,45 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             setSignupNicknameState("idle");
             setSocialAccount("");
             setSocialProvider(null);
+            setSocialProviderUserId("");
             setSocialNickname("");
             setSocialNicknameState("idle");
+            handledRedirectRef.current = false;
         }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || handledRedirectRef.current) return;
+
+        const payload = consumePendingSocialRedirect();
+        if (!payload) {
+            handledRedirectRef.current = true;
+            return;
+        }
+
+        handledRedirectRef.current = true;
+        setSubmitting(true);
+        setGlobalMessage("소셜 로그인 결과를 확인하는 중입니다...");
+        setGlobalMessageTone("info");
+
+        resolvePendingSocialRedirect(payload)
+            .then((identity) => {
+                setSocialProvider(identity.provider);
+                setSocialProviderUserId(identity.providerUserId);
+                setSocialAccount(identity.suggestedLoginId);
+                setSocialNickname(sanitizeNicknameSeed(identity.displayName));
+                setSocialNicknameState("idle");
+                setMode("social-signup");
+                setGlobalMessage("소셜 인증이 완료되었습니다. 가입 정보를 확인해 주세요.");
+                setGlobalMessageTone("info");
+            })
+            .catch((error) => {
+                setGlobalMessage(readErrorMessage(error, "소셜 로그인 처리에 실패했습니다."));
+                setGlobalMessageTone("error");
+            })
+            .finally(() => {
+                setSubmitting(false);
+            });
     }, [isOpen]);
 
     if (!isOpen) return null;
@@ -128,13 +185,26 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     const socialSignupEnabled =
         socialAccount.length > 0 &&
+        socialProvider !== null &&
         isValidNickname(socialNickname) &&
         socialNicknameState === "available" &&
         !submitting;
 
     const signupPasswordMessage = passwordMismatch ? "비밀번호가 다릅니다." : "";
-
     const socialSignTitle = socialProvider === "google" ? "Google 간편 회원가입" : "Kakao 간편 회원가입";
+
+    const applyAvailabilityResult = (
+        currentToken: number,
+        requestRef: { current: number },
+        setter: (value: AvailabilityState) => void,
+        state: AvailabilityState
+    ) => {
+        if (requestRef.current !== currentToken) {
+            return;
+        }
+
+        setter(state);
+    };
 
     const checkLoginIdAvailability = async () => {
         if (!signupId) {
@@ -147,14 +217,22 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             return;
         }
 
+        const nextToken = signupIdRequestRef.current + 1;
+        signupIdRequestRef.current = nextToken;
+        setSignupIdState("checking");
+
         try {
-            setSignupIdState("checking");
             const response = await securityGet<AvailabilityResponse>(
                 `/accounts/availability?loginId=${encodeURIComponent(signupId)}`
             );
-            setSignupIdState(response.result?.available ? "available" : "duplicate");
+            applyAvailabilityResult(
+                nextToken,
+                signupIdRequestRef,
+                setSignupIdState,
+                response.result?.available ? "available" : "duplicate"
+            );
         } catch {
-            setSignupIdState("invalid");
+            applyAvailabilityResult(nextToken, signupIdRequestRef, setSignupIdState, "invalid");
         }
     };
 
@@ -169,14 +247,22 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             return;
         }
 
+        const nextToken = signupNicknameRequestRef.current + 1;
+        signupNicknameRequestRef.current = nextToken;
+        setSignupNicknameState("checking");
+
         try {
-            setSignupNicknameState("checking");
             const response = await securityGet<AvailabilityResponse>(
                 `/accounts/availability?nickname=${encodeURIComponent(signupNickname)}`
             );
-            setSignupNicknameState(response.result?.available ? "available" : "duplicate");
+            applyAvailabilityResult(
+                nextToken,
+                signupNicknameRequestRef,
+                setSignupNicknameState,
+                response.result?.available ? "available" : "duplicate"
+            );
         } catch {
-            setSignupNicknameState("invalid");
+            applyAvailabilityResult(nextToken, signupNicknameRequestRef, setSignupNicknameState, "invalid");
         }
     };
 
@@ -191,14 +277,22 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             return;
         }
 
+        const nextToken = socialNicknameRequestRef.current + 1;
+        socialNicknameRequestRef.current = nextToken;
+        setSocialNicknameState("checking");
+
         try {
-            setSocialNicknameState("checking");
             const response = await securityGet<AvailabilityResponse>(
                 `/accounts/availability?nickname=${encodeURIComponent(socialNickname)}`
             );
-            setSocialNicknameState(response.result?.available ? "available" : "duplicate");
+            applyAvailabilityResult(
+                nextToken,
+                socialNicknameRequestRef,
+                setSocialNicknameState,
+                response.result?.available ? "available" : "duplicate"
+            );
         } catch {
-            setSocialNicknameState("invalid");
+            applyAvailabilityResult(nextToken, socialNicknameRequestRef, setSocialNicknameState, "invalid");
         }
     };
 
@@ -207,30 +301,31 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         if (!signInEnabled) return;
 
         setSubmitting(true);
-        setGlobalError("");
+        setGlobalMessage("");
+        setGlobalMessageTone("error");
 
         try {
             await login(signinId, signinPassword);
             onClose();
         } catch (error) {
-            setGlobalError(readErrorMessage(error, "로그인에 실패했습니다."));
+            setGlobalMessage(readErrorMessage(error, "로그인에 실패했습니다."));
+            setGlobalMessageTone("error");
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleTesterLogin = async () => {
-        const testerId = import.meta.env.VITE_TESTER_LOGIN_ID ?? "tester01";
-        const testerPw = import.meta.env.VITE_TESTER_LOGIN_PW ?? "tester1234";
-
         setSubmitting(true);
-        setGlobalError("");
+        setGlobalMessage("");
+        setGlobalMessageTone("error");
 
         try {
-            await login(testerId, testerPw);
+            await login(TESTER_LOGIN_ID, TESTER_LOGIN_PASSWORD);
             onClose();
         } catch (error) {
-            setGlobalError(readErrorMessage(error, "테스터 로그인에 실패했습니다."));
+            setGlobalMessage(readErrorMessage(error, "테스터 로그인에 실패했습니다."));
+            setGlobalMessageTone("error");
         } finally {
             setSubmitting(false);
         }
@@ -241,7 +336,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         if (!signupEnabled) return;
 
         setSubmitting(true);
-        setGlobalError("");
+        setGlobalMessage("");
+        setGlobalMessageTone("error");
 
         try {
             await securityPost<unknown>("/accounts", {
@@ -252,9 +348,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             setMode("signin");
             setSigninId(signupId);
             setSigninPassword("");
-            setGlobalError("회원가입이 완료되었습니다. 로그인해 주세요.");
+            setGlobalMessage("회원가입이 완료되었습니다. 로그인해 주세요.");
+            setGlobalMessageTone("success");
         } catch (error) {
-            setGlobalError(readErrorMessage(error, "회원가입에 실패했습니다."));
+            setGlobalMessage(readErrorMessage(error, "회원가입에 실패했습니다."));
+            setGlobalMessageTone("error");
         } finally {
             setSubmitting(false);
         }
@@ -262,38 +360,56 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     const handleSocialSignup = async (event: FormEvent) => {
         event.preventDefault();
-        if (!socialSignupEnabled) return;
+        if (!socialSignupEnabled || !socialProvider) return;
 
         setSubmitting(true);
-        setGlobalError("");
+        setGlobalMessage("");
+        setGlobalMessageTone("error");
 
         try {
-            await securityPost<unknown>("/accounts/kakao", {
+            const targetPath = socialProvider === "google" ? "/accounts/google" : "/accounts/kakao";
+            await securityPost<unknown>(targetPath, {
                 loginId: socialAccount,
                 nickname: socialNickname,
             });
             setMode("signin");
             setSigninId(socialAccount);
-            setGlobalError("간편 회원가입이 완료되었습니다. 로그인해 주세요.");
+            setSigninPassword("");
+            setGlobalMessage("간편 회원가입이 완료되었습니다. 로그인해 주세요.");
+            setGlobalMessageTone("success");
         } catch (error) {
-            setGlobalError(readErrorMessage(error, "간편 회원가입에 실패했습니다."));
+            setGlobalMessage(readErrorMessage(error, "간편 회원가입에 실패했습니다."));
+            setGlobalMessageTone("error");
         } finally {
             setSubmitting(false);
         }
     };
 
-    const handleSocialPreview = (provider: "kakao" | "google") => {
-        setSocialProvider(provider);
-        setSocialAccount(provider === "kakao" ? "kakao_juno" : "google_juno");
-        setSocialNickname("");
-        setSocialNicknameState("idle");
-        setMode("social-signup");
-        setGlobalError("소셜 로그인 연동 전 단계로, 회원가입 UI를 먼저 연결했습니다.");
+    const startSocialLogin = async (provider: SocialProvider) => {
+        if (submitting) return;
+
+        setSubmitting(true);
+        setGlobalMessage("");
+        setGlobalMessageTone("error");
+
+        try {
+            if (provider === "kakao") {
+                await beginKakaoRedirectLogin();
+                return;
+            }
+
+            beginGoogleRedirectLogin();
+        } catch (error) {
+            setGlobalMessage(readErrorMessage(error, "소셜 로그인 시작에 실패했습니다."));
+            setGlobalMessageTone("error");
+            setSubmitting(false);
+        }
     };
 
-    const openFullPage = () => {
-        onClose();
-        navigate("/login");
+    const moveToSignin = () => {
+        setMode("signin");
+        setGlobalMessage("");
+        setGlobalMessageTone("error");
     };
 
     const renderSignin = () => (
@@ -346,18 +462,20 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 <button
                     type="button"
                     className="social-login-button social-login-button--kakao"
-                    onClick={() => handleSocialPreview("kakao")}
+                    onClick={() => void startSocialLogin("kakao")}
                     aria-label="카카오로 로그인"
+                    disabled={submitting}
                 >
-                    K
+                    <span aria-hidden="true">K</span>
                 </button>
                 <button
                     type="button"
                     className="social-login-button social-login-button--google"
-                    onClick={() => handleSocialPreview("google")}
+                    onClick={() => void startSocialLogin("google")}
                     aria-label="구글로 로그인"
+                    disabled={submitting}
                 >
-                    G
+                    <span aria-hidden="true">G</span>
                 </button>
             </div>
 
@@ -367,17 +485,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     Sign up
                 </button>
             </div>
-
-            <button type="button" className="text-button auth-fullpage-button" onClick={openFullPage}>
-                전체 페이지 로그인 열기
-            </button>
         </form>
     );
 
     const renderSignup = () => (
         <form className="auth-form" onSubmit={handleSignup}>
             <div className="auth-field-group">
-                <div className={`auth-input-shell ${signupIdState === "duplicate" ? "is-error" : ""}`}>
+                <div className={`auth-input-shell ${signupIdState === "duplicate" || signupIdState === "invalid" ? "is-error" : ""}`}>
                     <input
                         className="auth-input"
                         placeholder="ID (6~20 characters)"
@@ -386,24 +500,28 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                             setSignupId(event.target.value);
                             setSignupIdState("idle");
                         }}
-                        onBlur={checkLoginIdAvailability}
+                        onBlur={() => void checkLoginIdAvailability()}
                     />
                     {signupIdState === "checking" && <span className="auth-inline-spinner" aria-hidden="true" />}
                 </div>
-                <div className={`auth-field-message ${signupIdState === "duplicate" ? "is-error" : ""}`}>
+                <div className={`auth-field-message ${signupIdState === "duplicate" || signupIdState === "invalid" ? "is-error" : signupIdState === "available" ? "is-success" : ""}`}>
                     {statusMessage("ID", signupIdState)}
                 </div>
             </div>
 
             <div className="auth-field-group">
-                <input
-                    className="auth-input"
-                    type="password"
-                    placeholder="Password (8~24)"
-                    value={signupPassword}
-                    onChange={(event) => setSignupPassword(event.target.value)}
-                />
-                <div className="auth-field-message" />
+                <div className={`${signupPassword.length > 0 && !isValidPassword(signupPassword) ? "auth-input-shell is-error" : "auth-input-shell"}`}>
+                    <input
+                        className="auth-input"
+                        type="password"
+                        placeholder="Password (8~24)"
+                        value={signupPassword}
+                        onChange={(event) => setSignupPassword(event.target.value)}
+                    />
+                </div>
+                <div className={`auth-field-message ${signupPassword.length > 0 && !isValidPassword(signupPassword) ? "is-error" : ""}`}>
+                    {signupPassword.length > 0 && !isValidPassword(signupPassword) ? "Password 입력칸을 확인하세요" : ""}
+                </div>
             </div>
 
             <div className="auth-field-group">
@@ -422,7 +540,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </div>
 
             <div className="auth-field-group">
-                <div className={`auth-input-shell ${signupNicknameState === "duplicate" ? "is-error" : ""}`}>
+                <div className={`auth-input-shell ${signupNicknameState === "duplicate" || signupNicknameState === "invalid" ? "is-error" : ""}`}>
                     <input
                         className="auth-input"
                         placeholder="Nickname (2~16)"
@@ -431,11 +549,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                             setSignupNickname(event.target.value);
                             setSignupNicknameState("idle");
                         }}
-                        onBlur={checkSignupNicknameAvailability}
+                        onBlur={() => void checkSignupNicknameAvailability()}
                     />
                     {signupNicknameState === "checking" && <span className="auth-inline-spinner" aria-hidden="true" />}
                 </div>
-                <div className={`auth-field-message ${signupNicknameState === "duplicate" ? "is-error" : ""}`}>
+                <div className={`auth-field-message ${signupNicknameState === "duplicate" || signupNicknameState === "invalid" ? "is-error" : signupNicknameState === "available" ? "is-success" : ""}`}>
                     {statusMessage("닉네임", signupNicknameState)}
                 </div>
             </div>
@@ -450,11 +568,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <form className="auth-form" onSubmit={handleSocialSignup}>
             <div className="auth-field-group">
                 <input className="auth-input auth-input-readonly" value={socialAccount} readOnly />
-                <div className="auth-field-message" />
+                <div className="auth-field-message auth-provider-summary">
+                    {socialProvider ? `${socialProvider.toUpperCase()} 인증 완료` : ""}
+                    {socialProviderUserId ? ` · providerId ${socialProviderUserId}` : ""}
+                </div>
             </div>
 
             <div className="auth-field-group">
-                <div className={`auth-input-shell ${socialNicknameState === "duplicate" ? "is-error" : ""}`}>
+                <div className={`auth-input-shell ${socialNicknameState === "duplicate" || socialNicknameState === "invalid" ? "is-error" : ""}`}>
                     <input
                         className="auth-input"
                         placeholder="Nickname"
@@ -463,11 +584,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                             setSocialNickname(event.target.value);
                             setSocialNicknameState("idle");
                         }}
-                        onBlur={checkSocialNicknameAvailability}
+                        onBlur={() => void checkSocialNicknameAvailability()}
                     />
                     {socialNicknameState === "checking" && <span className="auth-inline-spinner" aria-hidden="true" />}
                 </div>
-                <div className={`auth-field-message ${socialNicknameState === "duplicate" ? "is-error" : ""}`}>
+                <div className={`auth-field-message ${socialNicknameState === "duplicate" || socialNicknameState === "invalid" ? "is-error" : socialNicknameState === "available" ? "is-success" : ""}`}>
                     {statusMessage("닉네임", socialNicknameState)}
                 </div>
             </div>
@@ -481,28 +602,36 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     return (
         <div className="login-modal-overlay" onClick={onClose}>
             <div className="login-modal auth-modal" onClick={(event) => event.stopPropagation()}>
-                {mode === "signin" ? (
-                    <button className="modal-close-button" onClick={onClose} aria-label="닫기" type="button">
-                        ×
-                    </button>
-                ) : (
-                    <div className="auth-modal-topbar">
-                        <button type="button" className="auth-topbar-button" onClick={() => setMode("signin")}>
+                <div className="auth-modal-topbar">
+                    {mode === "signin" ? (
+                        <span className="auth-topbar-placeholder" aria-hidden="true" />
+                    ) : (
+                        <button type="button" className="auth-topbar-button" onClick={moveToSignin}>
                             ‹
                         </button>
-                        <div className="auth-modal-heading">{mode === "signup" ? "Sign up" : socialSignTitle}</div>
-                        <button className="auth-topbar-button auth-topbar-close" onClick={onClose} aria-label="닫기" type="button">
-                            ×
-                        </button>
+                    )}
+                    <div className="auth-modal-heading">
+                        {mode === "signin" ? "Sign In" : mode === "signup" ? "Sign up" : socialSignTitle}
                     </div>
-                )}
+                    <button className="auth-topbar-button auth-topbar-close" onClick={onClose} aria-label="닫기" type="button">
+                        ×
+                    </button>
+                </div>
 
                 {mode === "signin" && renderSignin()}
                 {mode === "signup" && renderSignup()}
                 {mode === "social-signup" && renderSocialSignup()}
 
-                <div className={`auth-global-message ${globalError ? "is-visible" : ""}`}>
-                    {globalError}
+                <div
+                    className={`auth-global-message ${globalMessage ? "is-visible" : ""} ${
+                        globalMessageTone === "success"
+                            ? "auth-global-message--success"
+                            : globalMessageTone === "info"
+                              ? "auth-global-message--info"
+                              : ""
+                    }`}
+                >
+                    {globalMessage}
                 </div>
             </div>
         </div>

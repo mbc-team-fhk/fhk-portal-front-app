@@ -7,6 +7,7 @@ export interface SocialIdentity {
   displayName: string;
   email?: string;
   accessToken?: string;
+  authCode?: string;
 }
 
 export interface PendingSocialRedirect {
@@ -14,5 +15,7 @@ export interface PendingSocialRedirect {
   code?: string;
   accessToken?: string;
   error?: string;
+  errorDescription?: string;
   state?: string;
+  tokenType?: string;
 }

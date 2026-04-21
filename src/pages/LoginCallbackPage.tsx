@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { PendingSocialRedirect, SocialProvider } from "../types/socialAuth";
+import { storePendingSocialRedirect } from "../utils/socialAuth";
 
-const SOCIAL_REDIRECT_STORAGE_KEY = "fhk.portal.pending-social-redirect";
+function parseHashParams(hash: string) {
+    const normalized = hash.startsWith("#") ? hash.slice(1) : hash;
+    return new URLSearchParams(normalized);
+}
 
 export default function LoginCallbackPage() {
     const navigate = useNavigate();
@@ -15,15 +19,25 @@ export default function LoginCallbackPage() {
             return;
         }
 
+        const hashParams = parseHashParams(window.location.hash);
+
         const payload: PendingSocialRedirect = {
             provider,
             code: searchParams.get("code") ?? undefined,
-            accessToken: searchParams.get("access_token") ?? undefined,
-            error: searchParams.get("error") ?? undefined,
-            state: searchParams.get("state") ?? undefined,
+            accessToken:
+                searchParams.get("access_token") ??
+                hashParams.get("access_token") ??
+                undefined,
+            error: searchParams.get("error") ?? hashParams.get("error") ?? undefined,
+            errorDescription:
+                searchParams.get("error_description") ??
+                hashParams.get("error_description") ??
+                undefined,
+            state: searchParams.get("state") ?? hashParams.get("state") ?? undefined,
+            tokenType: hashParams.get("token_type") ?? undefined,
         };
 
-        sessionStorage.setItem(SOCIAL_REDIRECT_STORAGE_KEY, JSON.stringify(payload));
+        storePendingSocialRedirect(payload);
         navigate("/login", { replace: true });
     }, [navigate, provider, searchParams]);
 
