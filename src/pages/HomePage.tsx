@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 const quickFeatures = [
@@ -68,9 +68,6 @@ const heroSlides = [
 export default function HomePage() {
     const [activeSlideIndex, setActiveSlideIndex] = useState(0);
     const slideTimerRef = useRef<number | null>(null);
-    const heroBackgroundStyle = {
-        "--hero-background-image": "url('/images/home/hero-background.jpg')",
-    } as CSSProperties;
 
     const resetSlideTimer = () => {
         if (slideTimerRef.current !== null) {
@@ -101,7 +98,7 @@ export default function HomePage() {
             <section className="hero-section hero-section-reworked">
                 <div className="hero-background-layer" aria-hidden="true">
                     <div className="hero-background-overlay" />
-                    <div className="hero-background-placeholder" style={heroBackgroundStyle} />
+                    <div className="hero-background-placeholder" />
                 </div>
 
                 <div className="shell hero-grid hero-grid-reworked">
