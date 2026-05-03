@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import type {
@@ -8,6 +8,10 @@ import type {
     SeatStatusItem,
 } from "../types/ticketReservation";
 import { TicketReservationApiError, ticketReservationApi } from "../utils/ticketReservationApi";
+
+const ticketHeroStyle = {
+    "--ticket-hero-image": "url('/images/main_banner1.PNG')",
+} as CSSProperties;
 
 const statusLabels: Record<string, string> = {
     AVAILABLE: "선택 가능",
@@ -325,7 +329,7 @@ export default function TicketReservationsPage() {
 
     return (
         <div className="ticket-page">
-            <section className="ticket-hero">
+            <section className="ticket-hero" style={ticketHeroStyle}>
                 <div className="shell ticket-hero-inner">
                     <div>
                         <div className="eyebrow">Ticket Reservation</div>
