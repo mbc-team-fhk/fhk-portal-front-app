@@ -1,14 +1,53 @@
+import { useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import type { PendingSocialRedirect, SocialProvider } from "../types/socialAuth";
+import { storePendingSocialRedirect } from "../utils/socialAuth";
+
+function parseHashParams(hash: string) {
+    const normalized = hash.startsWith("#") ? hash.slice(1) : hash;
+    return new URLSearchParams(normalized);
+}
+
 export default function LoginCallbackPage() {
+    const navigate = useNavigate();
+    const { provider } = useParams<{ provider: SocialProvider }>();
+    const [searchParams] = useSearchParams();
+
+    useEffect(() => {
+        if (!provider || (provider !== "kakao" && provider !== "google")) {
+            navigate("/login", { replace: true });
+            return;
+        }
+
+        const hashParams = parseHashParams(window.location.hash);
+
+        const payload: PendingSocialRedirect = {
+            provider,
+            code: searchParams.get("code") ?? undefined,
+            accessToken:
+                searchParams.get("access_token") ??
+                hashParams.get("access_token") ??
+                undefined,
+            error: searchParams.get("error") ?? hashParams.get("error") ?? undefined,
+            errorDescription:
+                searchParams.get("error_description") ??
+                hashParams.get("error_description") ??
+                undefined,
+            state: searchParams.get("state") ?? hashParams.get("state") ?? undefined,
+            tokenType: hashParams.get("token_type") ?? undefined,
+        };
+
+        storePendingSocialRedirect(payload);
+        navigate("/login", { replace: true });
+    }, [navigate, provider, searchParams]);
+
     return (
-        <div>
-            <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem" }}>
-                로그인 처리 중...
-            </h2>
-            <p style={{ fontSize: "0.95rem", color: "#555" }}>
-                외부 인증 서버에서 돌아온 응답을 처리하는 페이지입니다. 실제 구현 시
-                쿼리 파라미터의 코드/토큰을 BFF 로 전달하여 세션/쿠키를 설정하도록
-                구성하면 됩니다.
-            </p>
+        <div className="shell section-page narrow-page">
+            <div className="content-block">
+                <div className="eyebrow">OAuth Redirect</div>
+                <h1>로그인 처리 중...</h1>
+                <p>외부 인증 응답을 정리한 뒤 로그인 화면으로 이동합니다.</p>
+            </div>
         </div>
     );
 }

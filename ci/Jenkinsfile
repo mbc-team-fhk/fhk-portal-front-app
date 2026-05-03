@@ -44,19 +44,44 @@ pipeline {
         stage('Build (Vite)') {
             steps {
                 script {
-                    env.VITE_BASE_PATH = '/'
+                    echo "Branch: ${env.BRANCH_NAME}, Tag: ${env.IMAGE_TAG}"
+
+                    if (env.BRANCH_NAME == 'dev') {
+                        echo "dev 브랜치 -> Build (Vite) 스킵"
+                        return
+                    }
+
+                    if (env.BRANCH_NAME == 'staging') {
+                        env.VITE_API_BASE_URL = 'https://qa.fhk-team.org'
+                        env.VITE_OAUTH_KAKAO_JS_KEY = ''
+                        env.VITE_OAUTH_KAKAO_REDIRECT_URL = 'https://qa.fhk-team.org/redirect/kakao'
+                        env.VITE_OAUTH_GOOGLE_CLIENT_ID = ''
+                        env.VITE_OAUTH_GOOGLE_REDIRECT_URL = 'https://qa.fhk-team.org/redirect/google'
+                    }
+
+                    if (env.BRANCH_NAME == 'prod') {
+                        env.VITE_API_BASE_URL = 'https://fhk-team.org'
+                        env.VITE_OAUTH_KAKAO_JS_KEY = ''
+                        env.VITE_OAUTH_KAKAO_REDIRECT_URL = 'https://fhk-team.org/redirect/kakao'
+                        env.VITE_OAUTH_GOOGLE_CLIENT_ID = ''
+                        env.VITE_OAUTH_GOOGLE_REDIRECT_URL = 'https://fhk-team.org/redirect/google'
+                    }
+
                     if (env.IMAGE_TAG == 'NO_TAG') {
                         env.VITE_APP_VERSION = 'dev'
                     } else {
                         env.VITE_APP_VERSION = env.IMAGE_TAG
                     }
 
-                    echo "VITE_APP_VERSION=${env.VITE_APP_VERSION}"
-                    echo "VITE_BASE_PATH=${env.VITE_BASE_PATH}"
+                    echo "VITE_APP_VERSION=${env.VITE_APP_VERSION}" // front app version 표기용
 
                     sh '''
-                      export VITE_BASE_PATH="${VITE_BASE_PATH}"
                       export VITE_APP_VERSION="${VITE_APP_VERSION}"
+                      export VITE_API_BASE_URL="${VITE_API_BASE_URL}"
+                      export VITE_OAUTH_KAKAO_JS_KEY="${VITE_OAUTH_KAKAO_JS_KEY}"
+                      export VITE_OAUTH_KAKAO_REDIRECT_URL="${VITE_OAUTH_KAKAO_REDIRECT_URL}"
+                      export VITE_OAUTH_GOOGLE_CLIENT_ID="${VITE_OAUTH_GOOGLE_CLIENT_ID}"
+                      export VITE_OAUTH_GOOGLE_REDIRECT_URL="${VITE_OAUTH_GOOGLE_REDIRECT_URL}"
                       npm run build
                     '''
                 }

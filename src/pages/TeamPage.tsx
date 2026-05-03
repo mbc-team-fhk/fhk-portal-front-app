@@ -47,8 +47,8 @@ export default function TeamPage() {
     return (
         <div className="shell section-page">
             <div className="section-heading centered">
-                <h1>저희를 채용하세요!</h1>
-                <p>배울 능력과 의지가 있고, 책임감 있게 업무에 임합니다.</p>
+                <h1>팀원 소개</h1>
+                <p>프로젝트에서 담당한 역할과 기술 스택을 함께 확인할 수 있습니다.</p>
             </div>
 
             <div className="team-grid">
