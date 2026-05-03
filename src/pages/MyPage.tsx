@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 
-export default function MePage() {
+export default function MyPage() {
     const { user, isAuthenticated, loading } = useAuth();
 
     if (loading) {
@@ -29,9 +29,10 @@ export default function MePage() {
         <div className="shell section-page narrow-page">
             <div className="content-block">
                 <div className="eyebrow">My Page</div>
-                <h1>{user.name}</h1>
-                <p>계정 ID: {user.id}</p>
-                <p>권한: {user.roles.join(", ")}</p>
+                <h1>{user.nickname}</h1>
+                <p>계정 ID: {user.accountId}</p>
+                <p>로그인 ID: {user.loginId}</p>
+                <p>권한: {user.role}</p>
             </div>
         </div>
     );
