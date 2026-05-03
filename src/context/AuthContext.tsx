@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "../types/auth";
 import type { ApiResponse } from "../types/wrapper.ts";
+import { AUTH_HINT_KEY, AUTH_SESSION_EXPIRED_EVENT } from "../utils/authSession";
 
 interface AuthContextValue {
     user: User | null;
@@ -15,30 +16,57 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const API_PREFIX = "/api/security";
 const API_ROUTING_URL = API_BASE + API_PREFIX;
-const AUTH_HINT_KEY = "fhk_portal_authenticated";
+const AUTH_REQUEST_TIMEOUT_MS = 10000;
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-    children,
-}) => {
+type AuthCheckResult =
+    | { status: "authenticated"; user: User }
+    | { status: "unauthenticated" }
+    | { status: "unknown" };
+
+async function authFetch(input: RequestInfo | URL, init?: RequestInit) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
+
+    try {
+        return await fetch(input, {
+            ...init,
+            signal: controller.signal,
+        });
+    } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+            throw new Error("요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.");
+        }
+
+        throw error;
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchMe = async (): Promise<User | null> => {
-        const res = await fetch(`${API_ROUTING_URL}/auth/me`, {
+    const fetchMe = async (): Promise<AuthCheckResult> => {
+        const res = await authFetch(`${API_ROUTING_URL}/auth/me`, {
             credentials: "include",
         });
 
         if (!res.ok) {
-            return null;
+            if (res.status === 401 || res.status === 403) {
+                return { status: "unauthenticated" };
+            }
+
+            return { status: "unknown" };
         }
 
         const data: ApiResponse<User> = await res.json();
 
         if (!data.isSuccess || !data.result) {
-            return null;
+            return { status: "unknown" };
         }
 
-        return data.result;
+        return { status: "authenticated", user: data.result };
     };
 
     useEffect(() => {
@@ -51,17 +79,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             try {
-                const me = await fetchMe();
+                const meResult = await fetchMe();
 
-                if (me) {
-                    setUser(me);
-                } else {
+                if (meResult.status === "authenticated") {
+                    setUser(meResult.user);
+                } else if (meResult.status === "unauthenticated") {
                     setUser(null);
                     window.localStorage.removeItem(AUTH_HINT_KEY);
+                } else {
+                    setUser(null);
                 }
             } catch {
                 setUser(null);
-                window.localStorage.removeItem(AUTH_HINT_KEY);
             } finally {
                 setLoading(false);
             }
@@ -70,8 +99,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         initializeAuth();
     }, []);
 
+    useEffect(() => {
+        const handleSessionExpired = () => {
+            setUser(null);
+        };
+
+        window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+        return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    }, []);
+
     const login = async (loginId: string, loginPw: string) => {
-        const res = await fetch(`${API_ROUTING_URL}/auth/login`, {
+        const res = await authFetch(`${API_ROUTING_URL}/auth/login`, {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
@@ -80,23 +118,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (!res.ok) {
             window.localStorage.removeItem(AUTH_HINT_KEY);
-            throw new Error("로그인 실패");
+            throw new Error("로그인에 실패했습니다.");
+        }
+
+        const loginData: ApiResponse<unknown> = await res.json();
+
+        if (!loginData.isSuccess) {
+            window.localStorage.removeItem(AUTH_HINT_KEY);
+            throw new Error("로그인 응답이 올바르지 않습니다.");
         }
 
         window.localStorage.setItem(AUTH_HINT_KEY, "true");
 
-        const me = await fetchMe();
-        if (!me) {
+        const meResult = await fetchMe();
+        if (meResult.status !== "authenticated") {
             window.localStorage.removeItem(AUTH_HINT_KEY);
-            throw new Error("로그인 후 사용자 정보 조회 실패");
+            throw new Error("로그인 후 사용자 정보를 조회하지 못했습니다.");
         }
 
-        setUser(me);
+        setUser(meResult.user);
     };
 
     const logout = async () => {
         try {
-            await fetch(`${API_ROUTING_URL}/auth/logout`, {
+            await authFetch(`${API_ROUTING_URL}/auth/logout`, {
                 method: "POST",
                 credentials: "include",
             });

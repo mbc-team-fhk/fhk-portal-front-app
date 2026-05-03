@@ -1,0 +1,79 @@
+<svg width="880" height="608" viewBox="0 0 880 608" xmlns="http://www.w3.org/2000/svg">
+  <rect width="880" height="608" fill="#eff4ff"/>
+  <rect x="10" y="8" width="584" height="431" rx="5" fill="#eaf0ff" stroke="#bfd2f5"/>
+  <rect x="610" y="8" width="270" height="608" rx="5" fill="#eaf0ff" stroke="#bfd2f5"/>
+  <text x="29" y="47" fill="#111827" font-family="Arial, sans-serif" font-size="20" font-weight="800">좌석 선택</text>
+  <text x="29" y="72" fill="#4f6692" font-family="Arial, sans-serif" font-size="13">Concurrency Cinema / 4월 30일 오후 07:30</text>
+  <circle cx="564" cy="39" r="11" fill="#eef5ff" stroke="#c8d7f1"/>
+  <text x="558" y="44" fill="#111827" font-family="Arial, sans-serif" font-size="13" font-weight="800">↻</text>
+  <rect x="29" y="90" width="547" height="300" rx="4" fill="#030303"/>
+  <rect x="29" y="90" width="547" height="28" rx="3" fill="#6f6f6f"/>
+  <text x="270" y="108" fill="white" font-family="Arial, sans-serif" font-size="10" font-weight="800" letter-spacing="7">SCREEN</text>
+  <g font-family="Arial, sans-serif" font-size="10" font-weight="800" fill="white">
+    <text x="82" y="147">L</text><text x="82" y="166">K</text><text x="82" y="185">J</text><text x="82" y="204">I</text>
+    <text x="82" y="223">H</text><text x="82" y="242">G</text><text x="82" y="261">F</text><text x="82" y="280">E</text>
+    <text x="82" y="299">D</text><text x="82" y="318">C</text><text x="82" y="337">B</text><text x="82" y="356">A</text>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="9" font-weight="800" text-anchor="middle">
+    <defs>
+      <g id="seat-row">
+        <rect x="100" y="0" width="28" height="14" rx="4" fill="white"/><text x="114" y="10" fill="#111827">1</text>
+        <rect x="132" y="0" width="28" height="14" rx="4" fill="white"/><text x="146" y="10" fill="#111827">2</text>
+        <rect x="187" y="0" width="28" height="14" rx="4" fill="white"/><text x="201" y="10" fill="#111827">3</text>
+        <rect x="219" y="0" width="28" height="14" rx="4" fill="white"/><text x="233" y="10" fill="#111827">4</text>
+        <rect x="251" y="0" width="28" height="14" rx="4" fill="white"/><text x="265" y="10" fill="#111827">5</text>
+        <rect x="283" y="0" width="28" height="14" rx="4" fill="white"/><text x="297" y="10" fill="#111827">6</text>
+        <rect x="315" y="0" width="28" height="14" rx="4" fill="white"/><text x="329" y="10" fill="#111827">7</text>
+        <rect x="347" y="0" width="28" height="14" rx="4" fill="white"/><text x="361" y="10" fill="#111827">8</text>
+        <rect x="379" y="0" width="28" height="14" rx="4" fill="white"/><text x="393" y="10" fill="#111827">9</text>
+        <rect x="411" y="0" width="28" height="14" rx="4" fill="white"/><text x="425" y="10" fill="#111827">10</text>
+        <rect x="469" y="0" width="28" height="14" rx="4" fill="white"/><text x="483" y="10" fill="#111827">11</text>
+        <rect x="501" y="0" width="28" height="14" rx="4" fill="white"/><text x="515" y="10" fill="#111827">12</text>
+      </g>
+    </defs>
+    <use href="#seat-row" y="137"/><use href="#seat-row" y="156"/><use href="#seat-row" y="175"/><use href="#seat-row" y="194"/>
+    <use href="#seat-row" y="213"/><use href="#seat-row" y="232"/><use href="#seat-row" y="251"/><use href="#seat-row" y="270"/>
+    <use href="#seat-row" y="289"/><use href="#seat-row" y="308"/><use href="#seat-row" y="327"/><use href="#seat-row" y="346"/>
+  </g>
+  <g opacity="0.95" fill="#555">
+    <rect x="286" y="232" width="28" height="14" rx="4"/><rect x="318" y="232" width="28" height="14" rx="4"/>
+    <rect x="286" y="251" width="28" height="14" rx="4"/><rect x="318" y="251" width="28" height="14" rx="4"/>
+    <rect x="470" y="270" width="28" height="14" rx="4"/><rect x="502" y="270" width="28" height="14" rx="4"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="12" fill="#5f7298">
+    <circle cx="54" cy="411" r="5" fill="white" stroke="#bfd2f5"/><text x="67" y="416">일반석</text>
+    <circle cx="128" cy="411" r="5" fill="white" stroke="#ef4444"/><text x="142" y="416">선택됨</text>
+    <circle cx="205" cy="411" r="5" fill="#94a3b8"/><text x="219" y="416">예매완료(결제대기)</text>
+  </g>
+  <text x="629" y="47" fill="#111827" font-family="Arial, sans-serif" font-size="20" font-weight="800">예매 요약</text>
+  <rect x="629" y="71" width="232" height="44" rx="5" fill="#f8fbff" stroke="#cddcf8" stroke-dasharray="3 3"/>
+  <text x="641" y="97" fill="#6b7d9f" font-family="Arial, sans-serif" font-size="12">선택한 좌석이 없습니다.</text>
+  <line x1="629" y1="128" x2="861" y2="128" stroke="#cbd8ee"/>
+  <text x="629" y="155" fill="#111827" font-family="Arial, sans-serif" font-size="14">합계</text>
+  <text x="858" y="155" fill="#111827" font-family="Arial, sans-serif" font-size="14" font-weight="800" text-anchor="end">₩0</text>
+  <rect x="629" y="170" width="232" height="39" rx="19.5" fill="#7da0ef"/>
+  <text x="745" y="194" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">예약 생성</text>
+  <line x1="629" y1="221" x2="861" y2="221" stroke="#cbd8ee"/>
+  <text x="629" y="249" fill="#111827" font-family="Arial, sans-serif" font-size="16" font-weight="800">예약 결과</text>
+  <g font-family="Arial, sans-serif" font-size="12">
+    <text x="629" y="274" fill="#6b7d9f">예약 번호</text><text x="704" y="274" fill="#111827" font-weight="800">RSV-20260430155823311</text>
+    <text x="629" y="297" fill="#6b7d9f">좌석</text><text x="704" y="297" fill="#111827" font-weight="800">D6</text>
+    <text x="629" y="320" fill="#6b7d9f">결제금액</text><text x="704" y="320" fill="#111827" font-weight="800">₩14,000</text>
+    <text x="629" y="343" fill="#6b7d9f">상태</text><text x="704" y="343" fill="#111827" font-weight="800">결제 대기</text>
+    <text x="629" y="366" fill="#6b7d9f">만료 시간</text><text x="704" y="366" fill="#111827" font-weight="800">4월 30일 오후 04:03</text>
+  </g>
+  <rect x="629" y="377" width="232" height="38" rx="19" fill="#eff4ff" stroke="#c7d7f2"/>
+  <text x="745" y="401" fill="#111827" font-family="Arial, sans-serif" font-size="13" text-anchor="middle">결제 요청 생성</text>
+  <line x1="629" y1="426" x2="861" y2="426" stroke="#cbd8ee"/>
+  <text x="629" y="455" fill="#111827" font-family="Arial, sans-serif" font-size="16" font-weight="800">결제 결과</text>
+  <g font-family="Arial, sans-serif" font-size="12">
+    <text x="629" y="480" fill="#6b7d9f">결제 번호</text><text x="704" y="480" fill="#111827" font-weight="800">PAY-20260430155825602</text>
+    <text x="629" y="503" fill="#6b7d9f">결제금액</text><text x="704" y="503" fill="#111827" font-weight="800">₩14,000</text>
+    <text x="629" y="526" fill="#6b7d9f">상태</text><text x="704" y="526" fill="#111827" font-weight="800">결제 요청</text>
+    <text x="629" y="549" fill="#6b7d9f">요청시간</text><text x="704" y="549" fill="#111827" font-weight="800">4월 30일 오후 03:58</text>
+  </g>
+  <rect x="629" y="560" width="113" height="38" rx="19" fill="#2563eb"/>
+  <text x="686" y="584" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Mock 승인</text>
+  <rect x="749" y="560" width="112" height="38" rx="19" fill="#eff4ff" stroke="#c7d7f2"/>
+  <text x="805" y="584" fill="#111827" font-family="Arial, sans-serif" font-size="14" text-anchor="middle">Mock 실패</text>
+</svg>

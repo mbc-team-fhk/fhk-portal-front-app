@@ -6,18 +6,21 @@ const quickFeatures = [
         title: "CI/CD 자동화",
         summary: "GitHub → Jenkins → Docker Hub → k3s 배포 흐름을 표준화해 개발부터 검증, 배포까지 이어지는 운영 루프를 정리했습니다.",
         toneClass: "feature-card-cicd",
+        imageUrl: "/images/home/feature-cicd.jpg",
         cta: false,
     },
     {
         title: "인증/인가 통합 모듈",
         summary: "중앙 인증 서버와 공통 보안 모듈을 기준으로 토큰 발급과 서비스 검증 책임을 나눠 인증 흐름을 일관되게 유지했습니다.",
         toneClass: "feature-card-security",
+        imageUrl: "/images/home/feature-security.jpg",
         cta: false,
     },
     {
         title: "자산 관리 일원화",
         summary: "S3와 asset-service 기반으로 업로드, 저장, 메타데이터 추적 흐름을 분리해 재사용 가능한 공통 자산 경로를 만들었습니다.",
         toneClass: "feature-card-asset",
+        imageUrl: "/images/home/feature-asset.jpg",
         cta: false,
     },
     {
@@ -33,26 +36,32 @@ const heroSlides = [
     {
         title: "Home-Lab Based MSA",
         toneClass: "tone-home-lab",
+        imageUrl: "/images/home/slide-home-lab.jpg",
     },
     {
         title: "Hyper-V VM",
         toneClass: "tone-hyperv",
+        imageUrl: "/images/home/slide-hyperv.jpg",
     },
     {
         title: "k3s Cluster",
         toneClass: "tone-k3s",
+        imageUrl: "/images/home/slide-k3s.jpg",
     },
     {
         title: "Jenkins CI/CD",
         toneClass: "tone-jenkins",
+        imageUrl: "/images/home/slide-jenkins.jpg",
     },
     {
         title: "Security Server",
         toneClass: "tone-security",
+        imageUrl: "/images/home/slide-security.jpg",
     },
     {
         title: "Redis · Kafka · S3",
         toneClass: "tone-platform",
+        imageUrl: "/images/home/slide-platform.jpg",
     },
 ];
 
@@ -89,7 +98,7 @@ export default function HomePage() {
             <section className="hero-section hero-section-reworked">
                 <div className="hero-background-layer" aria-hidden="true">
                     <div className="hero-background-overlay" />
-                    <div className="hero-background-placeholder">Hero Background Placeholder</div>
+                    <div className="hero-background-placeholder" />
                 </div>
 
                 <div className="shell hero-grid hero-grid-reworked">
@@ -112,7 +121,12 @@ export default function HomePage() {
 
                     <div className="hero-slider-shell">
                         <div className={`hero-slider-stage ${heroSlides[activeSlideIndex].toneClass}`}>
-                            <div className="hero-slide-image-placeholder">Slide Image Placeholder</div>
+                            <img
+                                className="hero-slide-image"
+                                src={heroSlides[activeSlideIndex].imageUrl}
+                                alt=""
+                                aria-hidden="true"
+                            />
                             <div className="hero-slide-caption">{heroSlides[activeSlideIndex].title}</div>
                         </div>
                         <div className="hero-indicators" aria-label="Hero slides">
@@ -161,7 +175,7 @@ export default function HomePage() {
                                     className={`shortcut-card feature-preview-card ${item.toneClass}`}
                                 >
                                     <div className="feature-preview-visual" aria-hidden="true">
-                                        <div className="feature-preview-image-placeholder">IMAGE</div>
+                                        <img className="feature-preview-image" src={item.imageUrl} alt="" />
                                     </div>
                                     <h3>{item.title}</h3>
                                     <p>{item.summary}</p>
