@@ -7,7 +7,6 @@ import LoginPage from "./pages/LoginPage";
 import LoginCallbackPage from "./pages/LoginCallbackPage";
 import PingHealthPage from "./pages/PingHealthPage";
 import AboutPage from "./pages/AboutPage";
-import AboutNotionPage from "./pages/AboutNotionPage";
 import ArchitecturePage from "./pages/ArchitecturePage";
 import FeaturesPage from "./pages/FeaturesPage";
 import MyPage from "./pages/MyPage";
@@ -22,7 +21,6 @@ function App() {
                 <Route element={<MainLayout />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/about" element={<AboutPage />} />
-                    <Route path="/about-notion" element={<AboutNotionPage />} />
                     <Route path="/features" element={<FeaturesPage />} />
                     <Route path="/projects" element={<ProjectsPage />} />
                     <Route path="/projects/ticket-reservations" element={<TicketReservationsPage />} />

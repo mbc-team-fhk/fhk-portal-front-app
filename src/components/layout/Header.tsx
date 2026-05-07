@@ -57,7 +57,7 @@ export function Header() {
                         <NavLink to="/" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
                             Home
                         </NavLink>
-                        <NavLink to="/about-notion?section=1" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
+                        <NavLink to="/about" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
                             About
                         </NavLink>
                         <NavLink to="/features" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
