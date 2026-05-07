@@ -1,12 +1,10 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { useAuth } from "../../context/AuthContext";
 
 export default function MainLayout() {
     const { loading } = useAuth();
-    const { pathname } = useLocation();
-    const hideFooter = pathname === "/about-notion";
 
     if (loading) {
         return (
@@ -25,7 +23,7 @@ export default function MainLayout() {
             <main className="page-main">
                 <Outlet />
             </main>
-            {!hideFooter && <Footer />}
+            <Footer />
         </div>
     );
 }
