@@ -26,6 +26,7 @@ export function Header() {
     const [scrolled, setScrolled] = useState(false);
     const [loginOpen, setLoginOpen] = useState(false);
     const location = useLocation();
+    const isAboutNotionPage = location.pathname === "/about-notion";
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 8);
@@ -43,7 +44,7 @@ export function Header() {
 
     return (
         <>
-            <header className={`site-header ${scrolled ? "scrolled" : ""}`}>
+            <header className={`site-header ${isAboutNotionPage || scrolled ? "scrolled" : ""}`}>
                 <div className="shell header-inner">
                     <Link to="/" className="brand-link">
                         <div className="brand-mark">FHK</div>
