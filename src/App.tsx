@@ -13,11 +13,13 @@ import FeaturesPage from "./pages/FeaturesPage";
 import MyPage from "./pages/MyPage";
 import TicketReservationsPage from "./pages/TicketReservationsPage";
 import ScrollManager from "./components/common/ScrollManager";
+import DragGuard from "./components/common/DragGuard";
 
 function App() {
     return (
         <>
             <ScrollManager />
+            <DragGuard />
             <Routes>
                 <Route element={<MainLayout />}>
                     <Route path="/" element={<HomePage />} />
