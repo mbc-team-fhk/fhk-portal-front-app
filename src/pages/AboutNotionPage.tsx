@@ -129,7 +129,7 @@ export default function AboutNotionPage() {
     const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
     const [isFrameLoading, setIsFrameLoading] = useState(true);
     const [contentStatus, setContentStatus] = useState<ContentStatus>("idle");
-    const [showScrollTop, setShowScrollTop] = useState(false);
+    const [mobileOutlineOpen, setMobileOutlineOpen] = useState(false);
     const [hasFrameLoaded, setHasFrameLoaded] = useState(false);
     const frameLoadStartedAt = useRef(Date.now());
     const frameLoaderTimer = useRef<number | null>(null);
@@ -146,11 +146,16 @@ export default function AboutNotionPage() {
         selectedSection?.dropdownText,
         selectedSection?.text,
     ].filter(Boolean);
+    const mobileSelectedPath = [
+        selectedSection?.groupTitle,
+        selectedSection?.dropdownText,
+    ].filter(Boolean);
     const effectiveTheme = themeMode === "system" ? systemTheme : themeMode;
     const isOutlineLoading = sectionGroups === null;
     const hadInitialOutlineCache = useRef(sectionGroups !== null);
     const selectedNotionLink = selectedSection?.notionLink ?? "";
     const isContentReady = Boolean(selectedSection) && !isFrameLoading;
+    const shouldBlockFrameInteraction = isFrameLoading || !selectedSection;
 
     useEffect(() => {
         let isCurrent = true;
@@ -196,6 +201,29 @@ export default function AboutNotionPage() {
     }, []);
 
     useEffect(() => {
+        if (!mobileOutlineOpen) return;
+
+        const originalOverflow = document.body.style.overflow;
+        const originalPosition = document.body.style.position;
+        const originalTop = document.body.style.top;
+        const originalWidth = document.body.style.width;
+        const scrollY = window.scrollY;
+
+        document.body.style.overflow = "hidden";
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = "100%";
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.body.style.position = originalPosition;
+            document.body.style.top = originalTop;
+            document.body.style.width = originalWidth;
+            window.scrollTo(0, scrollY);
+        };
+    }, [mobileOutlineOpen]);
+
+    useEffect(() => {
         if (typeof window === "undefined") return;
 
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -207,19 +235,6 @@ export default function AboutNotionPage() {
         mediaQuery.addEventListener("change", updateSystemTheme);
 
         return () => mediaQuery.removeEventListener("change", updateSystemTheme);
-    }, []);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        const handleScroll = () => {
-            setShowScrollTop(window.scrollY > 420);
-        };
-
-        handleScroll();
-        window.addEventListener("scroll", handleScroll, { passive: true });
-
-        return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
     useEffect(() => {
@@ -278,6 +293,7 @@ export default function AboutNotionPage() {
     const handleSelect = (sectionNo: number) => {
         setSelectedNo(sectionNo);
         setSearchParams({ section: String(sectionNo) }, { replace: false });
+        setMobileOutlineOpen(false);
         window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     };
 
@@ -309,17 +325,43 @@ export default function AboutNotionPage() {
         }, delayMs);
     };
 
-    const handleScrollTop = () => {
-        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-    };
-
     return (
         <div
-            className={`about-notion-shell${isContentReady ? " content-ready" : ""}${hasFrameLoaded ? " frame-loaded" : ""}`}
+            className={`about-notion-shell${isContentReady ? " content-ready" : ""}${hasFrameLoaded ? " frame-loaded" : ""}${mobileOutlineOpen ? " outline-open" : ""}`}
             data-theme={effectiveTheme}
         >
             <div className="shell section-page about-notion-page">
-                <aside className="about-notion-sidebar" data-theme-toggle-visible={showThemeToggle} aria-label="Notion 목차">
+                <button
+                    type="button"
+                    className="about-notion-mobile-toggle"
+                    aria-expanded={mobileOutlineOpen}
+                    aria-controls="about-notion-outline"
+                    onClick={() => setMobileOutlineOpen((current) => !current)}
+                >
+                    <span className="about-notion-mobile-toggle-path">
+                        <span>목차</span>
+                        {mobileSelectedPath.map((pathItem) => (
+                            <span className="about-notion-mobile-toggle-path-item" key={pathItem}>
+                                {pathItem}
+                            </span>
+                        ))}
+                    </span>
+                    <span className={`about-notion-arrow-icon about-notion-arrow-down${mobileOutlineOpen ? " open" : ""}`} aria-hidden="true" />
+                </button>
+                <button
+                    type="button"
+                    className={`about-notion-outline-backdrop${mobileOutlineOpen ? " open" : ""}`}
+                    aria-label="목차 닫기"
+                    onClick={() => setMobileOutlineOpen(false)}
+                    onTouchMove={(event) => event.preventDefault()}
+                    onWheel={(event) => event.preventDefault()}
+                />
+                <aside
+                    id="about-notion-outline"
+                    className={`about-notion-sidebar${mobileOutlineOpen ? " mobile-open" : ""}`}
+                    data-theme-toggle-visible={showThemeToggle}
+                    aria-label="Notion 목차"
+                >
                     <div className="about-notion-sidebar-scroll">
                         {isOutlineLoading ? (
                             <AboutOutlineSkeleton />
@@ -446,9 +488,16 @@ export default function AboutNotionPage() {
                         </div>
                     </div>
                     <div className="notion-frame-crop">
-                        <div className={`notion-frame-mask${isFrameLoading || !selectedSection ? " visible" : ""}`} aria-hidden="true" />
+                        {shouldBlockFrameInteraction && (
+                            <div
+                                className="notion-frame-mask visible"
+                                aria-hidden="true"
+                                onWheel={(event) => event.preventDefault()}
+                                onTouchMove={(event) => event.preventDefault()}
+                            />
+                        )}
                         <div
-                            className={`notion-frame-loader${isFrameLoading || !selectedSection ? " visible" : ""}`}
+                            className={`notion-frame-loader${shouldBlockFrameInteraction ? " visible" : ""}`}
                             aria-live="polite"
                             aria-label="Notion 문서 로딩 중"
                         >
@@ -471,15 +520,6 @@ export default function AboutNotionPage() {
                     </div>
                 </main>
             </div>
-            <button
-                type="button"
-                className={`about-notion-scroll-top${showScrollTop ? " visible" : ""}`}
-                onClick={handleScrollTop}
-                aria-label="맨 위로 이동"
-            >
-                <span className="about-notion-arrow-icon about-notion-arrow-up" aria-hidden="true" />
-                <span className="about-notion-scroll-top-text">TOP</span>
-            </button>
         </div>
     );
 }

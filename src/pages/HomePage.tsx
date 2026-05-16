@@ -198,7 +198,7 @@ export default function HomePage() {
                         <div className="boundary-box">
                             <h3>이 포트폴리오는 왜 만들었나요?</h3>
                             <p>FHK 팀의 목표, 개발 환경, 브랜치 전략, 아키텍쳐, 향후 목표를 확인하세요</p>
-                            <Link to="/about" className="text-link">바로가기</Link>
+                            <Link to="/about-notion" className="text-link">바로가기</Link>
                         </div>
                         <div className="boundary-box">
                             <h3>빠른 프로젝트 살펴보기</h3>

@@ -7,7 +7,7 @@ const members: TeamMember[] = [
         role: "PM / Backend / DevOps",
         description: "홈랩 인프라 구성, 보안 구조, 배포 흐름, 포트폴리오 방향성을 주도적으로 정리했습니다.",
         github: "https://github.com/username1",
-        skills: ["Spring Boot", "k3s", "Jenkins", "Redis", "Kafka"],
+        skills: ["Spring Boot", "k3s", "Jenkins", "Redis"],
     },
     {
         id: "member-2",
@@ -49,6 +49,8 @@ export default function TeamPage() {
             <div className="section-heading centered">
                 <h1>팀원 소개</h1>
                 <p>프로젝트에서 담당한 역할과 기술 스택을 함께 확인할 수 있습니다.</p>
+                <br/>
+                <br/>
             </div>
 
             <div className="team-grid">

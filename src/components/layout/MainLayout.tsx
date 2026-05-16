@@ -2,11 +2,13 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { useAuth } from "../../context/AuthContext";
+import ScrollTopButton from "../common/ScrollTopButton";
 
 export default function MainLayout() {
     const { loading } = useAuth();
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
     const hideFooter = pathname === "/about-notion";
+    const pageKey = `${pathname}${search}`;
 
     if (loading) {
         return (
@@ -22,10 +24,17 @@ export default function MainLayout() {
     return (
         <div className="app-shell app-shell-ready">
             <Header />
-            <main className="page-main">
-                <Outlet />
+            <main className={`page-main${pathname === "/about-notion" ? " about-notion-main" : ""}`}>
+                {pathname === "/about-notion" ? (
+                    <Outlet />
+                ) : (
+                    <div className="page-transition" key={pageKey}>
+                        <Outlet />
+                    </div>
+                )}
             </main>
             {!hideFooter && <Footer />}
+            <ScrollTopButton />
         </div>
     );
 }
