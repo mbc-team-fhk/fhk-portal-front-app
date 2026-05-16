@@ -10,7 +10,7 @@ export function Footer() {
             }}
         >
             <div style={{ maxWidth: "1080px", margin: "0 auto", textAlign: "center" }}>
-                Copyright {new Date().getFullYear()}. all rights reserved by FHK Team.
+                Copyright © 2025 FHK Team. All rights reserved.
             </div>
         </footer>
     );

@@ -21,10 +21,29 @@ function LogoutIcon() {
     );
 }
 
+function MoreMenuIcon() {
+    return (
+        <svg viewBox="0 0 32 32" aria-hidden="true" className="header-menu-svg">
+            <path d="M26,16c0,1.104-0.896,2-2,2H8c-1.104,0-2-0.896-2-2s0.896-2,2-2h16C25.104,14,26,14.896,26,16z" fill="currentColor" />
+            <path d="M26,8c0,1.104-0.896,2-2,2H8c-1.104,0-2-0.896-2-2s0.896-2,2-2h16C25.104,6,26,6.896,26,8z" fill="currentColor" />
+            <path d="M26,24c0,1.104-0.896,2-2,2H8c-1.104,0-2-0.896-2-2s0.896-2,2-2h16C25.104,22,26,22.896,26,24z" fill="currentColor" />
+        </svg>
+    );
+}
+
+const navItems = [
+    { to: "/", label: "Home" },
+    { to: "/about-notion?section=1", label: "About" },
+    { to: "/features", label: "Features" },
+    { to: "/projects", label: "Projects" },
+    { to: "/contact", label: "Contact" },
+];
+
 export function Header() {
     const { isAuthenticated, logout, user, loading } = useAuth();
     const [scrolled, setScrolled] = useState(false);
     const [loginOpen, setLoginOpen] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const location = useLocation();
     const isAboutNotionPage = location.pathname === "/about-notion";
 
@@ -36,17 +55,52 @@ export function Header() {
 
     useEffect(() => {
         setLoginOpen(false);
+        setMobileMenuOpen(false);
     }, [location.pathname]);
+
+    useEffect(() => {
+        if (!mobileMenuOpen) return;
+
+        const originalOverflow = document.body.style.overflow;
+        const originalPosition = document.body.style.position;
+        const originalTop = document.body.style.top;
+        const originalWidth = document.body.style.width;
+        const scrollY = window.scrollY;
+
+        document.body.style.overflow = "hidden";
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = "100%";
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.body.style.position = originalPosition;
+            document.body.style.top = originalTop;
+            document.body.style.width = originalWidth;
+            window.scrollTo(0, scrollY);
+        };
+    }, [mobileMenuOpen]);
 
     const handleLogout = async () => {
         await logout();
+        setMobileMenuOpen(false);
     };
 
     return (
         <>
             <header className={`site-header ${isAboutNotionPage || scrolled ? "scrolled" : ""}`}>
                 <div className="shell header-inner">
-                    <Link to="/" className="brand-link">
+                    <button
+                        className={`header-menu-button${mobileMenuOpen ? " active" : ""}`}
+                        type="button"
+                        aria-label={mobileMenuOpen ? "모바일 메뉴 닫기" : "모바일 메뉴 열기"}
+                        aria-expanded={mobileMenuOpen}
+                        aria-controls="mobile-header-menu"
+                        onClick={() => setMobileMenuOpen((current) => !current)}
+                    >
+                        <MoreMenuIcon />
+                    </button>
+                    <Link to="/" className="brand-link" onClick={() => setMobileMenuOpen(false)}>
                         <div className="brand-mark">FHK</div>
                         <div>
                             <div className="brand-title">Home-Lab MSA</div>
@@ -55,21 +109,11 @@ export function Header() {
                     </Link>
 
                     <nav className="header-nav">
-                        <NavLink to="/" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
-                            Home
-                        </NavLink>
-                        <NavLink to="/about-notion?section=1" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
-                            About
-                        </NavLink>
-                        <NavLink to="/features" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
-                            Features
-                        </NavLink>
-                        <NavLink to="/projects" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
-                            Projects
-                        </NavLink>
-                        <NavLink to="/contact" className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
-                            Contact
-                        </NavLink>
+                        {navItems.map((item) => (
+                            <NavLink key={item.to} to={item.to} className={({ isActive }) => `header-nav-link${isActive ? " active" : ""}`}>
+                                {item.label}
+                            </NavLink>
+                        ))}
                     </nav>
 
                     <div className="header-actions">
@@ -97,7 +141,48 @@ export function Header() {
                         )}
                     </div>
                 </div>
+                <div id="mobile-header-menu" className={`mobile-header-menu${mobileMenuOpen ? " open" : ""}`}>
+                    <nav className="mobile-header-nav" aria-label="모바일 주요 메뉴">
+                        {navItems.map((item) => (
+                            <NavLink key={item.to} to={item.to} className={({ isActive }) => `mobile-header-link${isActive ? " active" : ""}`}>
+                                {item.label}
+                            </NavLink>
+                        ))}
+                    </nav>
+                    <div className="mobile-header-auth">
+                        {loading ? (
+                            <div className="mobile-header-status">인증 정보 확인 중...</div>
+                        ) : isAuthenticated && user ? (
+                            <>
+                                <div className="mobile-header-user">
+                                    <strong>{user.nickname} 님</strong>
+                                    <span>반갑습니다.</span>
+                                </div>
+                                <div className="mobile-header-auth-actions">
+                                    <Link className="secondary-button link-button" to="/myPage">
+                                        내 정보
+                                    </Link>
+                                    <button className="secondary-button" onClick={handleLogout} type="button">
+                                        로그아웃
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <button className="primary-button mobile-login-button" onClick={() => setLoginOpen(true)} type="button">
+                                로그인
+                            </button>
+                        )}
+                    </div>
+                </div>
             </header>
+            <button
+                className={`mobile-header-backdrop${mobileMenuOpen ? " open" : ""}`}
+                type="button"
+                aria-label="모바일 메뉴 닫기"
+                onClick={() => setMobileMenuOpen(false)}
+                onTouchMove={(event) => event.preventDefault()}
+                onWheel={(event) => event.preventDefault()}
+            />
             <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
         </>
     );
