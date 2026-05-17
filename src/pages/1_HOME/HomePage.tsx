@@ -3,32 +3,32 @@ import { Link } from "react-router-dom";
 
 const quickFeatures = [
     {
-        title: "CI/CD 자동화",
-        summary: "GitHub → Jenkins → Docker Hub → k3s 배포 흐름을 표준화해 개발부터 검증, 배포까지 이어지는 운영 루프를 정리했습니다.",
-        toneClass: "feature-card-cicd",
-        imageUrl: "/images/home/feature-cicd.jpg",
-        cta: false,
+        step: "01",
+        title: "배포 자동화",
+        summary: "개발부터 배포까지 연결된 흐름",
+        toneClass: "feature-preview-step-cicd",
+        visual: "pipeline",
     },
     {
-        title: "인증/인가 통합 모듈",
-        summary: "중앙 인증 서버와 공통 보안 모듈을 기준으로 토큰 발급과 서비스 검증 책임을 나눠 인증 흐름을 일관되게 유지했습니다.",
-        toneClass: "feature-card-security",
-        imageUrl: "/images/home/feature-security.jpg",
-        cta: false,
+        step: "02",
+        title: "중앙 인증",
+        summary: "BFF와 보안 서버 중심 구조",
+        toneClass: "feature-preview-step-auth",
+        visual: "shield",
     },
     {
-        title: "자산 관리 일원화",
-        summary: "S3와 asset-service 기반으로 업로드, 저장, 메타데이터 추적 흐름을 분리해 재사용 가능한 공통 자산 경로를 만들었습니다.",
-        toneClass: "feature-card-asset",
-        imageUrl: "/images/home/feature-asset.jpg",
-        cta: false,
+        step: "03",
+        title: "운영 분리",
+        summary: "dev · staging · prod 환경 구성",
+        toneClass: "feature-preview-step-env",
+        visual: "stack",
     },
     {
-        title: "Features",
-        summary: "핵심 아키텍처와 상세 구현 흐름을 정리한 페이지로 이동합니다.",
-        toneClass: "feature-card-cta",
-        cta: true,
-        href: "/features",
+        step: "04",
+        title: "파일 자산 관리",
+        summary: "업로드 · 저장 · 메타데이터 관리",
+        toneClass: "feature-preview-step-assets",
+        visual: "assets",
     },
 ];
 
@@ -36,32 +36,32 @@ const heroSlides = [
     {
         title: "Home-Lab Based MSA",
         toneClass: "tone-home-lab",
-        imageUrl: "/images/home/slide-home-lab.jpg",
+        imageUrl: "/images/home/slide/1.%20home-lab%20based%20msa.jpg",
     },
     {
         title: "Hyper-V VM",
         toneClass: "tone-hyperv",
-        imageUrl: "/images/home/slide-hyperv.jpg",
+        imageUrl: "/images/home/slide/2.%20hyper-v%20vm.png",
     },
     {
         title: "k3s Cluster",
         toneClass: "tone-k3s",
-        imageUrl: "/images/home/slide-k3s.jpg",
+        imageUrl: "/images/home/slide/3.%20k3s%20cluster.png",
     },
     {
         title: "Jenkins CI/CD",
         toneClass: "tone-jenkins",
-        imageUrl: "/images/home/slide-jenkins.jpg",
+        imageUrl: "/images/home/slide/4.%20jenkins%20cicd.png",
     },
     {
-        title: "Security Server",
+        title: "MSA Services",
         toneClass: "tone-security",
-        imageUrl: "/images/home/slide-security.jpg",
+        imageUrl: "/images/home/slide/5.%20msa%20services.png",
     },
     {
-        title: "Redis · Kafka · S3",
+        title: "Platform Layer",
         toneClass: "tone-platform",
-        imageUrl: "/images/home/slide-platform.jpg",
+        imageUrl: "/images/home/slide/6.%20platform%20layer.png",
     },
 ];
 
@@ -151,51 +151,83 @@ export default function HomePage() {
             <section className="jump-section feature-preview-section">
                 <div className="shell">
                     <div className="section-heading centered feature-preview-heading">
-                        <h2>Feature Preview</h2>
+                        <br />
+                        <br />
+                        <h1>Feature Preview</h1>
+                        <p>MSA 기반의 서비스 개발 환경을 만들고자 하였습니다.</p>
+                        <p>확장성과 모듈화를 고려한 인프라를 기반으로 지속적인 개발 및 검증을 수행합니다.</p>
+                        <br />
                     </div>
-                    <div className="shortcut-grid feature-preview-grid">
-                        {quickFeatures.map((item) => {
-                            if (item.cta) {
-                                return (
-                                    <Link
-                                        key={item.title}
-                                        to={item.href!}
-                                        className={`shortcut-card feature-preview-card ${item.toneClass} feature-preview-card-cta`}
-                                    >
-                                        <div className="feature-preview-visual" aria-hidden="true">
-                                            <div className="feature-preview-arrow">→</div>
-                                        </div>
-                                        <h3>{item.title}</h3>
-                                        <p>{item.summary}</p>
-                                        <div className="feature-preview-cta-label">바로가기</div>
-                                    </Link>
-                                );
-                            }
-
-                            return (
+                    <div className="feature-preview-banner">
+                        <div className="feature-preview-flow" aria-hidden="true" />
+                        <div className="feature-preview-grid">
+                            {quickFeatures.map((item) => (
                                 <article
                                     key={item.title}
-                                    className={`shortcut-card feature-preview-card ${item.toneClass}`}
+                                    className={`feature-preview-step ${item.toneClass}`}
                                 >
-                                    <div className="feature-preview-visual" aria-hidden="true">
-                                        <img className="feature-preview-image" src={item.imageUrl} alt="" />
+                                    <div className="feature-preview-step-head">
+                                        <div className="feature-preview-step-visual" aria-hidden="true">
+                                            <div className={`feature-preview-visual-figure feature-visual-${item.visual}`}>
+                                                {item.visual === "pipeline" ? (
+                                                    <div className="feature-visual-pipeline">
+                                                        <span />
+                                                        <span />
+                                                        <span />
+                                                    </div>
+                                                ) : null}
+                                                {item.visual === "shield" ? (
+                                                    <div className="feature-visual-shield">
+                                                        <div className="feature-visual-shield-core" />
+                                                        <div className="feature-visual-shield-lock" />
+                                                    </div>
+                                                ) : null}
+                                                {item.visual === "stack" ? (
+                                                    <div className="feature-visual-stack">
+                                                        <span>dev</span>
+                                                        <span>staging</span>
+                                                        <span>prod</span>
+                                                    </div>
+                                                ) : null}
+                                                {item.visual === "assets" ? (
+                                                    <div className="feature-visual-assets">
+                                                        <div className="feature-visual-folder" />
+                                                        <div className="feature-visual-cylinder" />
+                                                        <div className="feature-visual-cloud" />
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <span className="feature-preview-step-number">{item.step}</span>
                                     </div>
                                     <h3>{item.title}</h3>
                                     <p>{item.summary}</p>
                                 </article>
-                            );
-                        })}
+                            ))}
+                        </div>
+                        <div className="feature-preview-cta">
+                            <div className="feature-preview-cta-copy">
+                                <span className="feature-preview-cta-kicker">Architecture Detail</span>
+                                <strong>핵심 흐름과 구현 배경 더 보기</strong>
+                            </div>
+                            <Link to="/features" className="feature-preview-cta-button">
+                                feature 바로가기
+                            </Link>
+                        </div>
+                        </div>
                     </div>
-                </div>
             </section>
 
             <section className="boundary-section">
-                <div className="shell boundary-panel">
-                    <div className="section-heading centered">
-                        <div className="eyebrow"><h2>More</h2></div>
+                <div className="shell">
+                    <div className="section-heading centered home-more-heading">
+                        <br/>
+                        <h1>Next Route</h1>
+                        <br/>
                     </div>
-                    <div className="boundary-grid">
-                        <div className="boundary-box">
+                    <div className="boundary-panel">
+                        <div className="boundary-grid">
+                            <div className="boundary-box">
                             <h3>이 포트폴리오는 왜 만들었나요?</h3>
                             <p>FHK 팀의 목표, 개발 환경, 브랜치 전략, 아키텍쳐, 향후 목표를 확인하세요</p>
                             <Link to="/about-notion" className="text-link">바로가기</Link>
@@ -207,6 +239,7 @@ export default function HomePage() {
                         </div>
                     </div>
                 </div>
+            </div>
             </section>
         </div>
     );

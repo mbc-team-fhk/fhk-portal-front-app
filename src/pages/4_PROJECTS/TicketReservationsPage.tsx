@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext.tsx";
 import type {
     PaymentResponse,
     ReservationResponse,
     ScreeningSummary,
     SeatStatusItem,
-} from "../types/ticketReservation";
-import { TicketReservationApiError, ticketReservationApi } from "../utils/ticketReservationApi";
+} from "../../types/ticketReservation.ts";
+import { TicketReservationApiError, ticketReservationApi } from "../../utils/ticketReservationApi.ts";
 
 const ticketHeroStyle = {
     "--ticket-hero-image": "url('/images/main_banner1.PNG')",

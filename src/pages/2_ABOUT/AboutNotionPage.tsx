@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fallbackSectionGroups } from "../data/aboutNotionFallbackOutline";
-import { fetchAboutOutlineGroups, type AboutDropdownItem, type AboutSectionGroup, type AboutSectionItem } from "../utils/aboutOutlineApi";
+import { fallbackSectionGroups } from "../../data/aboutNotionFallbackOutline.ts";
+import { fetchAboutOutlineGroups, type AboutDropdownItem, type AboutSectionGroup, type AboutSectionItem } from "../../utils/aboutOutlineApi.ts";
 
 type ThemeMode = "system" | "light" | "dark";
 type OutlineSource = "loading" | "google-sheet" | "fallback";

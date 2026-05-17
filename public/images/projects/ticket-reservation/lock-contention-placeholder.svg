@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Lock Contention placeholder</title>
+  <desc id="desc">Placeholder for lock contention bot test output.</desc>
+  <rect width="960" height="540" fill="#f8fafc"/>
+  <rect x="32" y="32" width="896" height="476" rx="8" fill="#ffffff" stroke="#334155" stroke-width="2"/>
+  <text x="70" y="96" fill="#0f172a" font-family="Arial, sans-serif" font-size="32" font-weight="700">락 경합</text>
+  <text x="70" y="134" fill="#475569" font-family="Arial, sans-serif" font-size="18">봇 테스트 출력 내용 PNG 슬롯</text>
+  <rect x="86" y="180" width="788" height="236" rx="8" fill="#0f172a"/>
+  <g font-family="Consolas, monospace" font-size="20">
+    <text x="118" y="232" fill="#93c5fd">bot-test&gt; start seat contention test</text>
+    <text x="118" y="272" fill="#e2e8f0">targetSeat=A-10, clients=100, concurrency=50</text>
+    <text x="118" y="312" fill="#22c55e">success=1</text>
+    <text x="256" y="312" fill="#f97316">lock-conflict=99</text>
+    <text x="118" y="352" fill="#e2e8f0">duplicate reservation prevented by distributed lock</text>
+  </g>
+  <text x="480" y="460" fill="#334155" font-family="Arial, sans-serif" font-size="20" text-anchor="middle">PNG 파일로 교체 예정: lock-contention.png</text>
+</svg>
