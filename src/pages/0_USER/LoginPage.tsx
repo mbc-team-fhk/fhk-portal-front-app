@@ -1,4 +1,4 @@
-import LoginModal from "../components/common/LoginModal";
+import LoginModal from "../../components/common/LoginModal.tsx";
 import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {

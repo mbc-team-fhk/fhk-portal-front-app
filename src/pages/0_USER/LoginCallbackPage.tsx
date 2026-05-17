@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import type { PendingSocialRedirect, SocialProvider } from "../types/socialAuth";
-import { storePendingSocialRedirect } from "../utils/socialAuth";
+import type { PendingSocialRedirect, SocialProvider } from "../../types/socialAuth.ts";
+import { storePendingSocialRedirect } from "../../utils/socialAuth.ts";
 
 function parseHashParams(hash: string) {
     const normalized = hash.startsWith("#") ? hash.slice(1) : hash;
