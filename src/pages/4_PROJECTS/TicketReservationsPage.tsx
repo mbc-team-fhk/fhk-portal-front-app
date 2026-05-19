@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, type WheelEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.tsx";
 import type {
@@ -13,6 +14,37 @@ const ticketHeroStyle = {
     "--ticket-hero-image": "url('/images/main_banner1.PNG')",
 } as CSSProperties;
 
+type SeatMapView = {
+    scale: number;
+    x: number;
+    y: number;
+};
+
+type ViewerPointer = {
+    x: number;
+    y: number;
+};
+
+type ScreeningChangeWarning = {
+    screeningId: number;
+    title: string;
+    message: string;
+};
+
+const SEAT_MAP_MOBILE_QUERY = "(max-width: 720px)";
+const SEAT_MAP_STAGE_WIDTH = 638;
+const SEAT_MAP_STAGE_HEIGHT = 400;
+const MIN_SEAT_MAP_SCALE = 1;
+const MAX_SEAT_MAP_SCALE = 3.2;
+const SEAT_MAP_ZOOM_STEP = 0.4;
+const SEAT_MAP_DRAG_THRESHOLD = 5;
+
+const initialSeatMapView: SeatMapView = {
+    scale: MIN_SEAT_MAP_SCALE,
+    x: 0,
+    y: 0,
+};
+
 const statusLabels: Record<string, string> = {
     AVAILABLE: "선택 가능",
     HELD: "결제 대기",
@@ -26,6 +58,18 @@ const statusLabels: Record<string, string> = {
     APPROVED: "승인 완료",
     FAILED: "결제 실패",
 };
+
+function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function getDistance(first: ViewerPointer, second: ViewerPointer) {
+    return Math.hypot(first.x - second.x, first.y - second.y);
+}
+
+function isMobileSeatMapViewer() {
+    return typeof window !== "undefined" && window.matchMedia(SEAT_MAP_MOBILE_QUERY).matches;
+}
 
 function formatDate(value: string | null | undefined) {
     if (!value) {
@@ -76,6 +120,14 @@ function isAuthExpiredError(error: unknown) {
     return error instanceof TicketReservationApiError && (error.status === 401 || error.status === 403);
 }
 
+function TicketModalPortal({ children }: { children: ReactNode }) {
+    if (typeof document === "undefined") {
+        return children;
+    }
+
+    return createPortal(children, document.body);
+}
+
 function getTicketErrorMessage(error: unknown, fallback: string) {
     if (isAuthExpiredError(error)) {
         return "로그인 세션이 만료되었습니다. 다시 로그인해 주세요.";
@@ -96,9 +148,24 @@ export default function TicketReservationsPage() {
     const [seatsLoading, setSeatsLoading] = useState(false);
     const [seatsRefreshing, setSeatsRefreshing] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
+    const [, setMessage] = useState<string | null>(null);
     const [conflictMessage, setConflictMessage] = useState<string | null>(null);
     const [paymentExpiredMessage, setPaymentExpiredMessage] = useState<string | null>(null);
+    const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+    const [reserveConfirmOpen, setReserveConfirmOpen] = useState(false);
+    const [mockPaymentOpen, setMockPaymentOpen] = useState(false);
+    const [screeningChangeWarning, setScreeningChangeWarning] = useState<ScreeningChangeWarning | null>(null);
+    const [pendingSeatChange, setPendingSeatChange] = useState<SeatStatusItem | null>(null);
+    const [seatMapView, setSeatMapView] = useState<SeatMapView>(initialSeatMapView);
+    const [seatMapFitScale, setSeatMapFitScale] = useState(1);
+    const seatMapViewRef = useRef<SeatMapView>(initialSeatMapView);
+    const seatMapViewerRef = useRef<HTMLDivElement | null>(null);
+    const activeSeatMapPointersRef = useRef(new Map<number, ViewerPointer>());
+    const seatMapPanGestureRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null);
+    const seatMapPinchGestureRef = useRef<{ distance: number; scale: number } | null>(null);
+    const seatPointerCandidateRef = useRef<{ pointerId: number; seatId: number; startX: number; startY: number } | null>(null);
+    const suppressSeatClickRef = useRef(false);
+    const skipNextSeatClickRef = useRef(false);
 
     const selectedScreening = useMemo(
         () => screenings.find((screening) => screening.screeningId === selectedScreeningId) || null,
@@ -128,12 +195,269 @@ export default function TicketReservationsPage() {
     }, [seats]);
 
     const totalAmount = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+    const hasBookingProgress = selectedSeatIds.length > 0 || reservation !== null || payment !== null;
+    const screeningDescription = selectedScreening
+        ? `${selectedScreening.cinemaName} ${selectedScreening.screenRoomName} · ${formatDate(selectedScreening.startsAt)}`
+        : "-";
+    const summaryAnimationKey = `${selectedSeatIds.join("-")}-${totalAmount}`;
+
+    const resetSeatMapInteraction = () => {
+        activeSeatMapPointersRef.current.clear();
+        seatMapPanGestureRef.current = null;
+        seatMapPinchGestureRef.current = null;
+        seatPointerCandidateRef.current = null;
+        suppressSeatClickRef.current = false;
+    };
+
+    const clampSeatMapView = (nextView: SeatMapView): SeatMapView => {
+        const scale = clamp(nextView.scale, MIN_SEAT_MAP_SCALE, MAX_SEAT_MAP_SCALE);
+        const viewer = seatMapViewerRef.current;
+
+        if (!viewer || scale <= MIN_SEAT_MAP_SCALE) {
+            return initialSeatMapView;
+        }
+
+        const maxX = (viewer.clientWidth * (scale - 1)) / 2;
+        const maxY = (viewer.clientHeight * (scale - 1)) / 2;
+
+        return {
+            scale,
+            x: clamp(nextView.x, -maxX, maxX),
+            y: clamp(nextView.y, -maxY, maxY),
+        };
+    };
+
+    const updateSeatMapView = (nextView: SeatMapView | ((currentView: SeatMapView) => SeatMapView)) => {
+        if (!isMobileSeatMapViewer()) {
+            seatMapViewRef.current = initialSeatMapView;
+            setSeatMapView(initialSeatMapView);
+            return;
+        }
+
+        setSeatMapView((currentView) => {
+            const resolvedView = typeof nextView === "function" ? nextView(currentView) : nextView;
+            const clampedView = clampSeatMapView(resolvedView);
+            seatMapViewRef.current = clampedView;
+            return clampedView;
+        });
+    };
+
+    const resetSeatMapView = () => {
+        resetSeatMapInteraction();
+        seatMapViewRef.current = initialSeatMapView;
+        setSeatMapView(initialSeatMapView);
+    };
+
+    const zoomSeatMap = (amount: number) => {
+        updateSeatMapView((currentView) => ({
+            ...currentView,
+            scale: currentView.scale + amount,
+        }));
+    };
+
+    const syncSeatMapFitScale = () => {
+        const viewer = seatMapViewerRef.current;
+        const nextFitScale = isMobileSeatMapViewer() && viewer
+            ? Math.min(1, viewer.clientWidth / SEAT_MAP_STAGE_WIDTH)
+            : 1;
+
+        setSeatMapFitScale(nextFitScale);
+    };
+
+    const handleSeatMapPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+        if (!isMobileSeatMapViewer() || (event.pointerType === "mouse" && event.button !== 0)) {
+            return;
+        }
+
+        suppressSeatClickRef.current = false;
+        const seatButton = event.target instanceof Element
+            ? event.target.closest<HTMLButtonElement>(".seat-button")
+            : null;
+        const seatId = seatButton?.dataset.seatId ? Number(seatButton.dataset.seatId) : null;
+
+        if (seatId) {
+            seatPointerCandidateRef.current = {
+                pointerId: event.pointerId,
+                seatId,
+                startX: event.clientX,
+                startY: event.clientY,
+            };
+        }
+
+        event.currentTarget.setPointerCapture(event.pointerId);
+        activeSeatMapPointersRef.current.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
+        });
+
+        const activePointers = Array.from(activeSeatMapPointersRef.current.values());
+        const currentView = seatMapViewRef.current;
+
+        if (activePointers.length === 1) {
+            seatMapPanGestureRef.current = {
+                startX: event.clientX,
+                startY: event.clientY,
+                x: currentView.x,
+                y: currentView.y,
+            };
+            seatMapPinchGestureRef.current = null;
+            return;
+        }
+
+        if (activePointers.length === 2) {
+            suppressSeatClickRef.current = true;
+            seatMapPanGestureRef.current = null;
+            seatMapPinchGestureRef.current = {
+                distance: getDistance(activePointers[0], activePointers[1]),
+                scale: currentView.scale,
+            };
+        }
+    };
+
+    const handleSeatMapPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+        if (!isMobileSeatMapViewer() || !activeSeatMapPointersRef.current.has(event.pointerId)) {
+            return;
+        }
+
+        const seatPointerCandidate = seatPointerCandidateRef.current;
+        if (
+            seatPointerCandidate?.pointerId === event.pointerId
+            && Math.hypot(event.clientX - seatPointerCandidate.startX, event.clientY - seatPointerCandidate.startY) > SEAT_MAP_DRAG_THRESHOLD
+        ) {
+            suppressSeatClickRef.current = true;
+        }
+
+        activeSeatMapPointersRef.current.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
+        });
+
+        const activePointers = Array.from(activeSeatMapPointersRef.current.values());
+
+        if (activePointers.length >= 2 && seatMapPinchGestureRef.current) {
+            event.preventDefault();
+            suppressSeatClickRef.current = true;
+            const nextDistance = getDistance(activePointers[0], activePointers[1]);
+            const nextScale = seatMapPinchGestureRef.current.scale * (nextDistance / seatMapPinchGestureRef.current.distance);
+
+            updateSeatMapView((currentView) => ({
+                ...currentView,
+                scale: nextScale,
+            }));
+            return;
+        }
+
+        const currentView = seatMapViewRef.current;
+        if (currentView.scale <= MIN_SEAT_MAP_SCALE || !seatMapPanGestureRef.current) {
+            return;
+        }
+
+        const deltaX = event.clientX - seatMapPanGestureRef.current.startX;
+        const deltaY = event.clientY - seatMapPanGestureRef.current.startY;
+
+        if (Math.hypot(deltaX, deltaY) > SEAT_MAP_DRAG_THRESHOLD) {
+            suppressSeatClickRef.current = true;
+        }
+
+        event.preventDefault();
+        updateSeatMapView({
+            scale: currentView.scale,
+            x: seatMapPanGestureRef.current.x + deltaX,
+            y: seatMapPanGestureRef.current.y + deltaY,
+        });
+    };
+
+    const handleSeatMapPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+        if (!isMobileSeatMapViewer()) {
+            return;
+        }
+
+        const seatPointerCandidate = seatPointerCandidateRef.current;
+        if (seatPointerCandidate?.pointerId === event.pointerId) {
+            const moved = Math.hypot(event.clientX - seatPointerCandidate.startX, event.clientY - seatPointerCandidate.startY) > SEAT_MAP_DRAG_THRESHOLD;
+            const targetSeat = seats.find((seat) => seat.seatId === seatPointerCandidate.seatId);
+
+            if (!moved && !suppressSeatClickRef.current && targetSeat) {
+                skipNextSeatClickRef.current = true;
+                toggleSeat(targetSeat);
+            }
+
+            seatPointerCandidateRef.current = null;
+        }
+
+        activeSeatMapPointersRef.current.delete(event.pointerId);
+
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+
+        const activePointers = Array.from(activeSeatMapPointersRef.current.values());
+        const currentView = seatMapViewRef.current;
+
+        if (activePointers.length === 1) {
+            seatMapPanGestureRef.current = {
+                startX: activePointers[0].x,
+                startY: activePointers[0].y,
+                x: currentView.x,
+                y: currentView.y,
+            };
+            seatMapPinchGestureRef.current = null;
+            return;
+        }
+
+        seatMapPanGestureRef.current = null;
+        seatMapPinchGestureRef.current = null;
+    };
+
+    const handleSeatMapWheel = (event: WheelEvent<HTMLDivElement>) => {
+        if (!isMobileSeatMapViewer() || (!event.ctrlKey && !event.metaKey)) {
+            return;
+        }
+
+        event.preventDefault();
+        updateSeatMapView((currentView) => ({
+            ...currentView,
+            scale: currentView.scale - event.deltaY * 0.002,
+        }));
+    };
+
+    const handleSeatMapDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+        if (!isMobileSeatMapViewer() || event.target instanceof Element && event.target.closest(".seat-button")) {
+            return;
+        }
+
+        if (seatMapViewRef.current.scale > MIN_SEAT_MAP_SCALE) {
+            resetSeatMapView();
+            return;
+        }
+
+        updateSeatMapView({
+            scale: 2,
+            x: 0,
+            y: 0,
+        });
+    };
+
+    const handleSeatButtonClick = (seat: SeatStatusItem) => {
+        if (suppressSeatClickRef.current) {
+            suppressSeatClickRef.current = false;
+            return;
+        }
+
+        if (skipNextSeatClickRef.current) {
+            skipNextSeatClickRef.current = false;
+            return;
+        }
+
+        toggleSeat(seat);
+    };
 
     const refreshSeats = async (showLoading = true) => {
         if (!selectedScreeningId) {
             return;
         }
 
+        const loadingStartedAt = Date.now();
         const shouldBlockSeatMap = showLoading && seats.length === 0;
 
         if (showLoading) {
@@ -157,6 +481,12 @@ export default function TicketReservationsPage() {
             }
         } finally {
             if (showLoading) {
+                const remainingLoadingTime = 500 - (Date.now() - loadingStartedAt);
+
+                if (remainingLoadingTime > 0) {
+                    await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
+                }
+
                 setSeatsRefreshing(false);
 
                 if (shouldBlockSeatMap) {
@@ -188,16 +518,69 @@ export default function TicketReservationsPage() {
     useEffect(() => {
         if (!selectedScreeningId) {
             setSeats([]);
+            resetSeatMapView();
             return;
         }
 
         setSelectedSeatIds([]);
         setReservation(null);
         setPayment(null);
+        resetSeatMapView();
         refreshSeats();
     }, [selectedScreeningId]);
 
-    const toggleSeat = (seat: SeatStatusItem) => {
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const mediaQuery = window.matchMedia(SEAT_MAP_MOBILE_QUERY);
+        const resizeObserver = typeof ResizeObserver === "undefined"
+            ? null
+            : new ResizeObserver(() => {
+                syncSeatMapFitScale();
+                updateSeatMapView((currentView) => currentView);
+            });
+
+        if (seatMapViewerRef.current) {
+            resizeObserver?.observe(seatMapViewerRef.current);
+        }
+
+        const handleViewportChange = () => {
+            syncSeatMapFitScale();
+
+            if (!mediaQuery.matches) {
+                resetSeatMapView();
+                return;
+            }
+
+            updateSeatMapView((currentView) => currentView);
+        };
+
+        handleViewportChange();
+        mediaQuery.addEventListener("change", handleViewportChange);
+        window.addEventListener("resize", handleViewportChange);
+
+        return () => {
+            mediaQuery.removeEventListener("change", handleViewportChange);
+            window.removeEventListener("resize", handleViewportChange);
+            resizeObserver?.disconnect();
+        };
+    }, []);
+
+    const seatMapCombinedScale = seatMapFitScale * seatMapView.scale;
+    const seatMapBaseX = (SEAT_MAP_STAGE_WIDTH * seatMapFitScale * (1 - seatMapView.scale)) / 2;
+    const seatMapBaseY = (SEAT_MAP_STAGE_HEIGHT * seatMapFitScale * (1 - seatMapView.scale)) / 2;
+
+    const clearBookingFlow = () => {
+        setSelectedSeatIds([]);
+        setReservation(null);
+        setPayment(null);
+        setReserveConfirmOpen(false);
+        setMockPaymentOpen(false);
+    };
+
+    const applySeatToggle = (seat: SeatStatusItem) => {
         if (seat.status !== "AVAILABLE") {
             return;
         }
@@ -207,6 +590,61 @@ export default function TicketReservationsPage() {
                 ? current.filter((seatId) => seatId !== seat.seatId)
                 : [...current, seat.seatId],
         );
+    };
+
+    const toggleSeat = (seat: SeatStatusItem) => {
+        if (seat.status !== "AVAILABLE") {
+            return;
+        }
+
+        if (reservation || payment) {
+            setPendingSeatChange(seat);
+            return;
+        }
+
+        applySeatToggle(seat);
+    };
+
+    const confirmSeatChange = () => {
+        if (!pendingSeatChange) {
+            return;
+        }
+
+        setReservation(null);
+        setPayment(null);
+        setMockPaymentOpen(false);
+        setReserveConfirmOpen(false);
+        setSelectedSeatIds([pendingSeatChange.seatId]);
+        setPendingSeatChange(null);
+    };
+
+    const handleScreeningSelect = (screeningId: number) => {
+        if (screeningId === selectedScreeningId) {
+            return;
+        }
+
+        if (!hasBookingProgress) {
+            setSelectedScreeningId(screeningId);
+            return;
+        }
+
+        setScreeningChangeWarning({
+            screeningId,
+            title: reservation || payment ? "진행 중인 예약을 초기화할까요?" : "선택한 예매 정보를 초기화할까요?",
+            message: reservation || payment
+                ? "상영을 변경하면 진행 중인 예약 정보가 사라집니다. 점유된 예약 좌석은 5분 뒤 자동 해제될 수 있습니다."
+                : "상영을 변경하면 진행 중인 예매 선택 정보가 초기화됩니다.",
+        });
+    };
+
+    const confirmScreeningChange = () => {
+        if (!screeningChangeWarning) {
+            return;
+        }
+
+        clearBookingFlow();
+        setSelectedScreeningId(screeningChangeWarning.screeningId);
+        setScreeningChangeWarning(null);
     };
 
     const handleReserve = async () => {
@@ -222,10 +660,12 @@ export default function TicketReservationsPage() {
             const result = await ticketReservationApi.createReservation(selectedScreeningId, selectedSeatIds);
             setReservation(result);
             setPayment(null);
+            setReserveConfirmOpen(false);
             setMessage("예약이 생성되었습니다. 결제 요청을 진행할 수 있습니다.");
             await refreshSeats();
         } catch (error) {
             if (error instanceof TicketReservationApiError && error.status === 409) {
+                setReserveConfirmOpen(false);
                 setConflictMessage(error.message);
                 return;
             }
@@ -268,6 +708,7 @@ export default function TicketReservationsPage() {
         try {
             const result = await ticketReservationApi.createPayment(reservation.reservationId, reservation.totalAmount);
             setPayment(result);
+            setMockPaymentOpen(true);
             setMessage("결제 요청이 생성되었습니다. Mock PG 승인/실패를 테스트할 수 있습니다.");
         } catch (error) {
             setMessage(getTicketErrorMessage(error, "결제 요청 생성에 실패했습니다."));
@@ -297,9 +738,11 @@ export default function TicketReservationsPage() {
             }
 
             await refreshSeats();
+            setMockPaymentOpen(false);
             setMessage(mode === "success" ? "Mock 결제가 승인되었습니다." : "Mock 결제가 실패 처리되었습니다.");
         } catch (error) {
             if (isPaymentExpiredError(error)) {
+                setMockPaymentOpen(false);
                 setPaymentExpiredMessage("결제 가능시간이 만료되었습니다.");
                 return;
             }
@@ -316,13 +759,13 @@ export default function TicketReservationsPage() {
 
         try {
             await ticketReservationApi.resetDemoData();
-            setReservation(null);
-            setPayment(null);
+            clearBookingFlow();
             await refreshSeats();
             setMessage("데모 좌석 데이터가 초기화되었습니다.");
         } catch (error) {
             setMessage(getTicketErrorMessage(error, "데모 데이터 초기화에 실패했습니다."));
         } finally {
+            setResetConfirmOpen(false);
             setActionLoading(false);
         }
     };
@@ -348,20 +791,22 @@ export default function TicketReservationsPage() {
             </section>
 
             <main className="shell ticket-workspace">
-                {message && (
-                    <div className="ticket-empty" role="alert">
-                        {message}
-                    </div>
-                )}
+                <div className="ticket-demo-toolbar">
+                    <button
+                        className="secondary-button ticket-demo-reset-button"
+                        type="button"
+                        onClick={() => setResetConfirmOpen(true)}
+                        disabled={actionLoading || seatsLoading}
+                    >
+                        데모 초기화
+                    </button>
+                </div>
                 <section className="ticket-section">
                     <div className="ticket-section-heading">
                         <div>
                             <h2>상영 목록</h2>
                             <p>데모 카탈로그에서 예매할 상영을 선택하세요.</p>
                         </div>
-                        <button className="secondary-button" type="button" onClick={handleResetDemo} disabled={actionLoading || seatsLoading}>
-                            데모 초기화
-                        </button>
                     </div>
 
                     {loading ? (
@@ -372,22 +817,25 @@ export default function TicketReservationsPage() {
                                 <button
                                     className={`screening-card${screening.screeningId === selectedScreeningId ? " is-active" : ""}`}
                                     key={screening.screeningId}
-                                    onClick={() => setSelectedScreeningId(screening.screeningId)}
+                                    onClick={() => handleScreeningSelect(screening.screeningId)}
                                     type="button"
                                 >
-                                    <span>{screening.cinemaName}</span>
-                                    <strong>{screening.movieTitle}</strong>
-                                    <small>
-                                        {screening.screenRoomName} · {formatDate(screening.startsAt)}
-                                    </small>
+                                    <span className="screening-card-cinema">{screening.cinemaName}</span>
+                                    <div className="screening-card-main">
+                                        <strong>{screening.movieTitle}</strong>
+                                        <small>
+                                            <span>{screening.screenRoomName}</span>
+                                            <span>{formatDate(screening.startsAt)}</span>
+                                        </small>
+                                    </div>
                                 </button>
                             ))}
                         </div>
                     )}
                 </section>
 
-                <section className="ticket-grid-layout">
-                    <div className="ticket-section">
+                <section className="ticket-grid-layout ticket-flow-region" key={selectedScreeningId ?? "empty-screening"}>
+                    <div className="ticket-section ticket-seat-section">
                         <div className="ticket-section-heading">
                             <div>
                                 <h2>좌석 선택</h2>
@@ -405,33 +853,94 @@ export default function TicketReservationsPage() {
                             </button>
                         </div>
 
-                        <div className="screen-indicator">SCREEN</div>
-                        {seatsLoading ? (
-                            <div className="ticket-empty">좌석 상태를 불러오는 중입니다.</div>
-                        ) : (
-                            <div className="seat-map">
-                                {seatRows.map((row) => (
-                                    <div className="seat-row" key={row.seatRow}>
-                                        <span className="seat-row-label">{row.seatRow}</span>
-                                        {row.seats.map((seat) => {
-                                            const selected = selectedSeatIds.includes(seat.seatId);
-                                            return (
-                                                <button
-                                                    className={getSeatClass(seat, selected)}
-                                                    disabled={seat.status !== "AVAILABLE"}
-                                                    key={seat.seatId}
-                                                    onClick={() => toggleSeat(seat)}
-                                                    title={`${seat.seatLabel} ${statusLabels[seat.status] || seat.status}`}
-                                                    type="button"
-                                                >
-                                                    {seat.seatNumber}
-                                                </button>
-                                            );
-                                        })}
+                        <div className="seat-map-frame">
+                            <div
+                                aria-label="좌석표"
+                                className={`seat-map-viewer${seatMapView.scale > MIN_SEAT_MAP_SCALE ? " is-zoomed" : ""}`}
+                                onDoubleClick={handleSeatMapDoubleClick}
+                                onPointerCancel={handleSeatMapPointerEnd}
+                                onPointerDown={handleSeatMapPointerDown}
+                                onPointerMove={handleSeatMapPointerMove}
+                                onPointerUp={handleSeatMapPointerEnd}
+                                onWheel={handleSeatMapWheel}
+                                ref={seatMapViewerRef}
+                                style={{
+                                    "--seat-map-frame-height": `${SEAT_MAP_STAGE_HEIGHT * seatMapFitScale}px`,
+                                } as CSSProperties}
+                                tabIndex={0}
+                            >
+                                <div
+                                    className="seat-map-stage"
+                                    style={{
+                                        transform: `translate3d(${seatMapBaseX + seatMapView.x}px, ${seatMapBaseY + seatMapView.y}px, 0) scale(${seatMapCombinedScale})`,
+                                    }}
+                                >
+                                    <div className="screen-indicator">SCREEN</div>
+                                    {seatsLoading ? (
+                                        <div className="ticket-empty">좌석 상태를 불러오는 중입니다.</div>
+                                    ) : (
+                                        <div className="seat-map">
+                                            {seatRows.map((row) => (
+                                                <div className="seat-row" key={row.seatRow}>
+                                                    <span className="seat-row-label">{row.seatRow}</span>
+                                                    {row.seats.map((seat) => {
+                                                        const selected = selectedSeatIds.includes(seat.seatId);
+                                                        return (
+                                                            <button
+                                                                className={getSeatClass(seat, selected)}
+                                                                data-seat-id={seat.seatId}
+                                                                disabled={seat.status !== "AVAILABLE"}
+                                                                key={seat.seatId}
+                                                                onClick={() => handleSeatButtonClick(seat)}
+                                                                title={`${seat.seatLabel} ${statusLabels[seat.status] || seat.status}`}
+                                                                type="button"
+                                                            >
+                                                                {seat.seatNumber}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                {seatsRefreshing && (
+                                    <div className="seat-map-loading-overlay" role="status">
+                                        <span className="seat-map-loading-bar" />
+                                        <span>좌석 정보를 새로고침 중입니다.</span>
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        )}
+                            <div className="seat-map-zoom-controls" aria-label="좌석표 확대 축소">
+                                <button
+                                    aria-label="좌석표 축소"
+                                    className="seat-map-zoom-button"
+                                    disabled={seatMapView.scale <= MIN_SEAT_MAP_SCALE}
+                                    onClick={() => zoomSeatMap(-SEAT_MAP_ZOOM_STEP)}
+                                    type="button"
+                                >
+                                    -
+                                </button>
+                                <button
+                                    aria-label="좌석표 전체보기"
+                                    className="seat-map-zoom-button"
+                                    disabled={seatMapView.scale <= MIN_SEAT_MAP_SCALE}
+                                    onClick={resetSeatMapView}
+                                    type="button"
+                                >
+                                    1x
+                                </button>
+                                <button
+                                    aria-label="좌석표 확대"
+                                    className="seat-map-zoom-button"
+                                    disabled={seatMapView.scale >= MAX_SEAT_MAP_SCALE}
+                                    onClick={() => zoomSeatMap(SEAT_MAP_ZOOM_STEP)}
+                                    type="button"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
 
                         <div className="seat-legend">
                             <span><i className="legend-dot is-available" />일반석</span>
@@ -448,44 +957,48 @@ export default function TicketReservationsPage() {
                     </div>
 
                     <aside className="ticket-section ticket-summary">
-                        <h2>예매 요약</h2>
-                        {selectedSeats.length === 0 ? (
-                            <div className="ticket-empty compact">선택한 좌석이 없습니다.</div>
-                        ) : (
-                            <div className="selected-seat-list">
-                                {selectedSeats.map((seat) => (
-                                    <div className="selected-seat-row" key={seat.seatId}>
-                                        <span>{seat.seatLabel}</span>
-                                        <strong>{formatCurrency(seat.price)}</strong>
+                        {!reservation ? (
+                            <div className="ticket-step-panel">
+                                <span className="ticket-step-label">Step 1</span>
+                                <h2>결제 정보</h2>
+                                {selectedSeats.length === 0 ? (
+                                    <div className="ticket-empty compact">선택한 좌석이 없습니다.</div>
+                                ) : (
+                                    <div className="selected-seat-list">
+                                        {selectedSeats.map((seat) => (
+                                            <div className="selected-seat-row ticket-list-enter" key={seat.seatId}>
+                                                <span>{seat.seatLabel}</span>
+                                                <strong>{formatCurrency(seat.price)}</strong>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
+
+                                <div className="summary-total ticket-total-enter" key={summaryAnimationKey}>
+                                    <span>합계</span>
+                                    <strong>{formatCurrency(totalAmount)}</strong>
+                                </div>
+
+                                {!authLoading && !isAuthenticated && (
+                                    <div className="login-required">
+                                        결제 진행은 로그인이 필요합니다. <Link to="/login">로그인 페이지</Link>
+                                    </div>
+                                )}
+
+                                <button
+                                    className="primary-button ticket-full-button"
+                                    disabled={!isAuthenticated || actionLoading || selectedSeatIds.length === 0}
+                                    onClick={() => setReserveConfirmOpen(true)}
+                                    type="button"
+                                >
+                                    결제하기
+                                </button>
                             </div>
-                        )}
-
-                        <div className="summary-total">
-                            <span>합계</span>
-                            <strong>{formatCurrency(totalAmount)}</strong>
-                        </div>
-
-                        {!authLoading && !isAuthenticated && (
-                            <div className="login-required">
-                                예약 생성은 로그인이 필요합니다. <Link to="/login">로그인 페이지</Link>
-                            </div>
-                        )}
-
-                        <button
-                            className="primary-button ticket-full-button"
-                            disabled={!isAuthenticated || actionLoading || selectedSeatIds.length === 0}
-                            onClick={handleReserve}
-                            type="button"
-                        >
-                            예약 생성
-                        </button>
-
-                        {reservation && (
-                            <div className="result-panel">
-                                <h3>예약 결과</h3>
-                                <dl>
+                        ) : (
+                            <div className="ticket-step-panel">
+                                <span className="ticket-step-label">Step 2</span>
+                                <h2>예약 현황</h2>
+                                <dl className="ticket-detail-list">
                                     <dt>예약 번호</dt>
                                     <dd>{reservation.reservationNo}</dd>
                                     <dt>좌석</dt>
@@ -497,27 +1010,44 @@ export default function TicketReservationsPage() {
                                     <dt>만료 시간</dt>
                                     <dd>{formatDate(reservation.expiresAt)}</dd>
                                 </dl>
-                                <button
-                                    className="secondary-button ticket-full-button"
-                                    disabled={actionLoading || reservation.status !== "PENDING_PAYMENT"}
-                                    hidden={reservation.status !== "PENDING_PAYMENT"}
-                                    onClick={handleCreatePayment}
-                                    type="button"
-                                >
-                                    결제 요청 생성
-                                </button>
+
+                                {reservation.status === "PENDING_PAYMENT" && (
+                                    <div className="ticket-payment-method">
+                                        <h3>결제 방법 선택</h3>
+                                        <button
+                                            className="secondary-button ticket-full-button"
+                                            disabled={actionLoading || Boolean(payment)}
+                                            onClick={handleCreatePayment}
+                                            type="button"
+                                        >
+                                            Mock 네이버페이 결제
+                                        </button>
+                                        {payment?.status === "REQUESTED" && (
+                                            <button className="primary-button ticket-full-button" disabled={actionLoading} onClick={() => setMockPaymentOpen(true)} type="button">
+                                                Mock PG 상태 처리
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        {payment && (
-                            <div className="result-panel">
-                                <h3>결제 결과</h3>
-                                <dl>
+                        {payment && reservation && (
+                            <div className="ticket-step-panel ticket-payment-history">
+                                <span className="ticket-step-label">Step 3</span>
+                                <h2>결제 내역</h2>
+                                <dl className="ticket-detail-list">
+                                    <dt>예약 번호</dt>
+                                    <dd>{reservation.reservationNo}</dd>
+                                    <dt>상영</dt>
+                                    <dd>{screeningDescription}</dd>
+                                    <dt>영화</dt>
+                                    <dd>{selectedScreening?.movieTitle || "-"}</dd>
+                                    <dt>좌석</dt>
+                                    <dd>{formatSeatLabels(reservation.seats)}</dd>
                                     <dt>결제 번호</dt>
                                     <dd>{payment.paymentNo}</dd>
-                                    <dt>결제금액</dt>
-                                    <dd>{formatCurrency(payment.amount)}</dd>
-                                    <dt>상태</dt>
+                                    <dt>결제 상태</dt>
                                     <dd>{statusLabels[payment.status] || payment.status}</dd>
                                     <dt>요청시간</dt>
                                     <dd>{formatDate(payment.requestedAt)}</dd>
@@ -528,42 +1058,158 @@ export default function TicketReservationsPage() {
                                         </>
                                     )}
                                 </dl>
-                                <div className="payment-actions" hidden={payment.status !== "REQUESTED"}>
-                                    <button className="primary-button" disabled={actionLoading} onClick={() => handleMockPayment("success")} type="button">
-                                        Mock 승인
-                                    </button>
-                                    <button className="secondary-button" disabled={actionLoading} onClick={() => handleMockPayment("fail")} type="button">
-                                        Mock 실패
-                                    </button>
-                                </div>
                             </div>
                         )}
                     </aside>
                 </section>
             </main>
 
-            {paymentExpiredMessage && (
-                <div className="ticket-modal-overlay" role="presentation">
-                    <div aria-modal="true" className="ticket-modal" role="dialog">
-                        <h2>결제 시간이 만료되었습니다</h2>
-                        <p>{paymentExpiredMessage}</p>
-                        <button className="primary-button ticket-modal-button" onClick={() => void closePaymentExpiredModal()} type="button">
-                            확인
-                        </button>
+            {reserveConfirmOpen && selectedScreening && selectedSeats.length > 0 && (
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-labelledby="ticket-reserve-title" aria-modal="true" className="ticket-modal" role="alertdialog">
+                            <h2 id="ticket-reserve-title">결제를 진행하시겠습니까?</h2>
+                            <dl className="ticket-modal-detail-list">
+                                <dt>영화관</dt>
+                                <dd>{selectedScreening.cinemaName}</dd>
+                                <dt>영화</dt>
+                                <dd>{selectedScreening.movieTitle}</dd>
+                                <dt>상영</dt>
+                                <dd>{`${selectedScreening.screenRoomName} · ${formatDate(selectedScreening.startsAt)}`}</dd>
+                                <dt>좌석</dt>
+                                <dd>{formatSeatLabels(selectedSeats)}</dd>
+                                <dt>결제금액</dt>
+                                <dd>{formatCurrency(totalAmount)}</dd>
+                            </dl>
+                            <div className="ticket-modal-actions">
+                                <button className="secondary-button" disabled={actionLoading} onClick={() => setReserveConfirmOpen(false)} type="button">
+                                    취소
+                                </button>
+                                <button className="primary-button" disabled={actionLoading} onClick={() => void handleReserve()} type="button">
+                                    예약 생성
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </TicketModalPortal>
+            )}
+
+            {mockPaymentOpen && payment && (
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-labelledby="ticket-mock-payment-title" aria-modal="true" className="ticket-modal" role="alertdialog">
+                            <h2 id="ticket-mock-payment-title">Mock PG 결제 프로세스</h2>
+                            <p>실제 결제가 아닌 테스트용 Mock PG 흐름입니다. 승인 또는 실패 이벤트를 발생시켜 결제 상태를 갱신할 수 있습니다.</p>
+                            <dl className="ticket-modal-detail-list">
+                                <dt>결제 번호</dt>
+                                <dd>{payment.paymentNo}</dd>
+                                <dt>결제금액</dt>
+                                <dd>{formatCurrency(payment.amount)}</dd>
+                                <dt>상태</dt>
+                                <dd>{statusLabels[payment.status] || payment.status}</dd>
+                                <dt>요청시간</dt>
+                                <dd>{formatDate(payment.requestedAt)}</dd>
+                            </dl>
+                            <div className="ticket-modal-actions">
+                                <button className="secondary-button" disabled={actionLoading} onClick={() => setMockPaymentOpen(false)} type="button">
+                                    닫기
+                                </button>
+                                <button className="secondary-button" disabled={actionLoading} onClick={() => handleMockPayment("fail")} type="button">
+                                    결제 실패 발생
+                                </button>
+                                <button className="primary-button" disabled={actionLoading} onClick={() => handleMockPayment("success")} type="button">
+                                    결제 승인 발생
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </TicketModalPortal>
+            )}
+
+            {screeningChangeWarning && (
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-labelledby="ticket-screening-change-title" aria-modal="true" className="ticket-modal" role="alertdialog">
+                            <h2 id="ticket-screening-change-title">{screeningChangeWarning.title}</h2>
+                            <p>{screeningChangeWarning.message}</p>
+                            <div className="ticket-modal-actions">
+                                <button className="secondary-button" disabled={actionLoading} onClick={() => setScreeningChangeWarning(null)} type="button">
+                                    취소
+                                </button>
+                                <button className="primary-button ticket-danger-button" disabled={actionLoading} onClick={confirmScreeningChange} type="button">
+                                    변경
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </TicketModalPortal>
+            )}
+
+            {pendingSeatChange && (
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-labelledby="ticket-seat-change-title" aria-modal="true" className="ticket-modal" role="alertdialog">
+                            <h2 id="ticket-seat-change-title">좌석 선택을 변경할까요?</h2>
+                            <p>좌석을 변경하면 진행 중인 예약 정보가 사라집니다. 예약 좌석은 5분 뒤 자동 해제될 수 있습니다.</p>
+                            <div className="ticket-modal-actions">
+                                <button className="secondary-button" disabled={actionLoading} onClick={() => setPendingSeatChange(null)} type="button">
+                                    취소
+                                </button>
+                                <button className="primary-button ticket-danger-button" disabled={actionLoading} onClick={confirmSeatChange} type="button">
+                                    변경
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </TicketModalPortal>
+            )}
+
+            {paymentExpiredMessage && (
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-modal="true" className="ticket-modal" role="dialog">
+                            <h2>결제 시간이 만료되었습니다</h2>
+                            <p>{paymentExpiredMessage}</p>
+                            <button className="primary-button ticket-modal-button" onClick={() => void closePaymentExpiredModal()} type="button">
+                                확인
+                            </button>
+                        </div>
+                    </div>
+                </TicketModalPortal>
+            )}
+
+            {resetConfirmOpen && (
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-labelledby="ticket-reset-title" aria-modal="true" className="ticket-modal ticket-reset-modal" role="alertdialog">
+                            <div aria-hidden="true" className="ticket-reset-modal-icon" />
+                            <h2 id="ticket-reset-title">데모 데이터를 초기화할까요?</h2>
+                            <p>상영 좌석 상태와 진행 중인 예약/결제 테스트 흐름이 초기 상태로 되돌아갑니다.</p>
+                            <div className="ticket-modal-actions">
+                                <button className="secondary-button" disabled={actionLoading} onClick={() => setResetConfirmOpen(false)} type="button">
+                                    취소
+                                </button>
+                                <button className="primary-button ticket-danger-button" disabled={actionLoading} onClick={() => void handleResetDemo()} type="button">
+                                    초기화
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </TicketModalPortal>
             )}
 
             {conflictMessage && (
-                <div className="ticket-modal-overlay" role="presentation">
-                    <div aria-modal="true" className="ticket-modal" role="dialog">
-                        <h2>예약할 수 없는 좌석입니다</h2>
-                        <p>{conflictMessage}</p>
-                        <button className="primary-button ticket-modal-button" onClick={() => void closeConflictModal()} type="button">
-                            확인
-                        </button>
+                <TicketModalPortal>
+                    <div className="ticket-modal-overlay" role="presentation">
+                        <div aria-modal="true" className="ticket-modal" role="dialog">
+                            <h2>예약할 수 없는 좌석입니다</h2>
+                            <p>{conflictMessage}</p>
+                            <button className="primary-button ticket-modal-button" onClick={() => void closeConflictModal()} type="button">
+                                확인
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </TicketModalPortal>
             )}
         </div>
     );

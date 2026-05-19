@@ -292,7 +292,7 @@ export default function FeaturesPage() {
     };
 
     return (
-        <div className="shell section-page">
+        <div className="shell section-page features-page">
             <div className="section-heading centered">
                 <h1>Home-Lab 기반의 MSA 인프라</h1>
                 <p>개발, 인증, 배포, 운영 흐름을 하나의 구조로 연결하고</p>
