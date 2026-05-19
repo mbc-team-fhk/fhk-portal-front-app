@@ -142,12 +142,10 @@ export default function ProjectsPage() {
         : -1;
 
     return (
-        <div className="shell section-page">
+        <div className="shell section-page projects-page">
             <div className="section-heading centered projects-page-heading">
                 <h1>프로젝트를 가볍게 둘러보고 직접 테스트해보세요</h1>
                 <p>일부 기능은 로그인 후 예약/결제 흐름까지 실행할 수 있습니다.</p>
-                <br />
-                <br />
             </div>
 
             {selectedProject ? (
@@ -198,13 +196,11 @@ export default function ProjectsPage() {
                                         <li key={bullet}>{bullet}</li>
                                     ))}
                                 </ul>
-                                <TechStackBadges items={selectedProject.techStack} className="project-tech-stack" />
+                                <TechStackBadges items={selectedProject.techStack} className="project-tech-stack"/>
                                 <div className="hero-actions">
-                                    <Link to={selectedProject.path} className="primary-button link-button">프로젝트 열기</Link>
+                                    <Link to={selectedProject.path} className="primary-button link-button">프로젝트
+                                        열기</Link>
                                 </div>
-                                <br />
-                                <br />
-                                <br />
                             </div>
                         </article>
                     </div>

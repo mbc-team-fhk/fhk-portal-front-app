@@ -306,7 +306,7 @@ function TeamMemberCard({ member }: { member: TeamMemberProfile }) {
 
 export default function TeamPage() {
     return (
-        <div className="shell section-page">
+        <div className="shell section-page team-page">
             <div className="section-heading centered">
                 <h1>팀원 소개</h1>
                 <p>프로젝트에서 담당한 역할과 기술 스택을 함께 확인할 수 있습니다.</p>
