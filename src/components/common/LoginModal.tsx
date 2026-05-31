@@ -2,8 +2,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { securityGet, securityPost } from "../../utils/securityApi";
 import {
-    beginGoogleRedirectLogin,
-    beginKakaoRedirectLogin,
     consumePendingSocialRedirect,
     resolvePendingSocialRedirect,
 } from "../../utils/socialAuth";
@@ -432,29 +430,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
     };
 
-    const startSocialLogin = async (provider: SocialProvider) => {
-        if (submitting) return;
-
-        setSubmitting(true);
-        setSigninMessage("");
-        setSigninMessageTone("error");
-        setGlobalMessage("");
-        setGlobalMessageTone("error");
-
-        try {
-            if (provider === "kakao") {
-                await beginKakaoRedirectLogin();
-                return;
-            }
-
-            beginGoogleRedirectLogin();
-        } catch (error) {
-            setSigninMessage(readErrorMessage(error, "소셜 로그인 시작에 실패했습니다."));
-            setSigninMessageTone("error");
-            setSubmitting(false);
-        }
-    };
-
     const moveToSignin = () => {
         setMode("signin");
         setGlobalMessage("");
@@ -517,7 +492,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
             <div className="auth-divider"><span>OR</span></div>
 
-            <div className="social-login-row">
+            {/*<div className="social-login-row">
                 <button
                     type="button"
                     className="social-login-button social-login-button--kakao"
@@ -536,7 +511,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 >
                     <span aria-hidden="true">G</span>
                 </button>
-            </div>
+            </div>*/}
 
             <div className="auth-switch-row">
                 <span>아직 계정이 없으신가요?</span>
