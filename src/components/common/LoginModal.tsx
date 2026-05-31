@@ -2,8 +2,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { securityGet, securityPost } from "../../utils/securityApi";
 import {
-    beginGoogleRedirectLogin,
-    beginKakaoRedirectLogin,
     consumePendingSocialRedirect,
     resolvePendingSocialRedirect,
 } from "../../utils/socialAuth";
@@ -22,8 +20,8 @@ type AvailabilityResponse = {
     available: boolean;
 };
 
-const TESTER_TOOLTIP_TEXT = "포트폴리오 시연용 계정으로 바로 로그인합니다.";
-const TESTER_LOGIN_ID = "tester01";
+const TESTER_TOOLTIP_TEXT = "포트폴리오 시연용 테스터 계정 중 하나로 바로 로그인합니다.";
+const TESTER_LOGIN_IDS = Array.from({ length: 10 }, (_, index) => `tester${String(index + 1).padStart(2, "0")}`);
 const TESTER_LOGIN_PASSWORD = "tester1234";
 
 function isValidLoginId(value: string) {
@@ -357,6 +355,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     };
 
     const handleTesterLogin = async () => {
+        const testerLoginId = TESTER_LOGIN_IDS[Math.floor(Math.random() * TESTER_LOGIN_IDS.length)];
+
         setSubmitting(true);
         setSigninMessage("");
         setSigninMessageTone("error");
@@ -364,7 +364,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         setGlobalMessageTone("error");
 
         try {
-            await login(TESTER_LOGIN_ID, TESTER_LOGIN_PASSWORD);
+            await login(testerLoginId, TESTER_LOGIN_PASSWORD);
             onClose();
         } catch (error) {
             setSigninMessage(readErrorMessage(error, "테스터 로그인에 실패했습니다."));
@@ -432,29 +432,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
     };
 
-    const startSocialLogin = async (provider: SocialProvider) => {
-        if (submitting) return;
-
-        setSubmitting(true);
-        setSigninMessage("");
-        setSigninMessageTone("error");
-        setGlobalMessage("");
-        setGlobalMessageTone("error");
-
-        try {
-            if (provider === "kakao") {
-                await beginKakaoRedirectLogin();
-                return;
-            }
-
-            beginGoogleRedirectLogin();
-        } catch (error) {
-            setSigninMessage(readErrorMessage(error, "소셜 로그인 시작에 실패했습니다."));
-            setSigninMessageTone("error");
-            setSubmitting(false);
-        }
-    };
-
     const moveToSignin = () => {
         setMode("signin");
         setGlobalMessage("");
@@ -517,7 +494,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
             <div className="auth-divider"><span>OR</span></div>
 
-            <div className="social-login-row">
+            {/*<div className="social-login-row">
                 <button
                     type="button"
                     className="social-login-button social-login-button--kakao"
@@ -536,7 +513,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 >
                     <span aria-hidden="true">G</span>
                 </button>
-            </div>
+            </div>*/}
 
             <div className="auth-switch-row">
                 <span>아직 계정이 없으신가요?</span>

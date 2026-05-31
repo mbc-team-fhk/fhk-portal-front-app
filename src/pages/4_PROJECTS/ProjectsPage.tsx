@@ -5,6 +5,7 @@ import type { Project } from "../../types/portal.ts";
 
 type ProjectItem = Project & {
     published: boolean;
+    openDisabled?: boolean;
     preview: string;
     previewImage: string;
     mediaTabs: MediaTabItem[];
@@ -32,27 +33,27 @@ const projects: ProjectItem[] = [
             },
             {
                 label: "예매 Flow",
-                src: "/images/projects/ticket-reservation/reservation-flow-placeholder.svg",
-                caption: "정상 케이스 GIF: 영화 선택부터 좌석 선택, 예약 생성, 결제 대기까지 이어지는 흐름입니다.",
+                src: "/images/projects/ticket-reservation/reservation-flow.gif",
+                caption: "영화 선택부터 좌석 선택, 예약 생성, 결제 대기까지 이어지는 흐름입니다.",
                 alt: "Ticket reservation normal flow placeholder",
             },
             {
                 label: "예매 실패 Flow",
-                src: "/images/projects/ticket-reservation/reservation-failure-flow-placeholder.svg",
-                caption: "두 클라이언트 동시 시도 GIF: 이미 판매된 좌석 요청이 실패 처리되는 흐름입니다.",
+                src: "/images/projects/ticket-reservation/reservation-failure-flow-placeholder.gif",
+                caption: "이미 판매된 좌석 요청이 실패 처리되는 흐름입니다.",
                 alt: "Ticket reservation failure flow placeholder",
             },
             {
                 label: "락 경합",
-                src: "/images/projects/ticket-reservation/lock-contention-placeholder.svg",
-                caption: "봇 테스트 출력 PNG: 동일 좌석 경합에서 단일 예약만 성공하는지 확인합니다.",
+                src: "/images/projects/ticket-reservation/lock-contention.png",
+                caption: "동일 좌석 경합에서 단일 예약만 성공하는지 확인합니다.",
                 alt: "Ticket reservation lock contention placeholder",
             },
             {
                 label: "봇 트래픽 결과",
-                src: "/images/projects/ticket-reservation/bot-traffic-result-placeholder.svg",
-                caption: "봇 트래픽 테스트 결과 PNG: 요청량, 실패율, 락 경합 결과를 요약 그래프로 정리합니다.",
-                alt: "Ticket reservation bot traffic result placeholder",
+                src: "/images/projects/ticket-reservation/bot-traffic-result.svg",
+                caption: "동일 좌석 경합과 분산 좌석 예매의 성공/실패, p95 지연시간을 요약합니다.",
+                alt: "Ticket reservation bot traffic result graph",
             },
         ],
         bullets: [
@@ -70,6 +71,7 @@ const projects: ProjectItem[] = [
         protected: true,
         path: "/projects/realtime-chat",
         published: true,
+        openDisabled: true,
         preview: "채팅방 · 실시간 메시지 · 브로드캐스트 · 이벤트 처리",
         previewImage: "/images/projects/realtime-chat-preview.svg",
         mediaTabs: [
@@ -95,6 +97,7 @@ const projects: ProjectItem[] = [
         protected: true,
         path: "/projects/payment-gateway",
         published: true,
+        openDisabled: true,
         preview: "PG 승인 · 콜백 검증 · 결제 상태 동기화 · 실패 보상",
         previewImage: "/images/projects/payment-gateway-preview.svg",
         mediaTabs: [
@@ -198,8 +201,15 @@ export default function ProjectsPage() {
                                 </ul>
                                 <TechStackBadges items={selectedProject.techStack} className="project-tech-stack"/>
                                 <div className="hero-actions">
-                                    <Link to={selectedProject.path} className="primary-button link-button">프로젝트
-                                        열기</Link>
+                                    {selectedProject.openDisabled ? (
+                                        <button type="button" className="primary-button link-button" disabled>
+                                            프로젝트 열기
+                                        </button>
+                                    ) : (
+                                        <Link to={selectedProject.path} className="primary-button link-button">
+                                            프로젝트 열기
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
                         </article>

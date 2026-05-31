@@ -79,7 +79,7 @@ const features: FeatureSummary[] = [
     {
         id: "asset",
         label: "Feature 3",
-        title: "파일 자산 관리",
+        title: "파일 자산 관리 (예정)",
         summary: "S3 저장소와 메타데이터를 분리한 공통 업로드 구조",
         detail: "업로드 파일을 각 서비스에 분산 저장하지 않고 공통 자산 서비스로 분리했습니다. S3 저장소와 메타데이터 관리를 나누어 재사용성과 추적 가능성을 확보했습니다.",
         mediaTabs: [
