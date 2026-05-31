@@ -9,3 +9,8 @@ COPY ./infra/docker/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
+
+# todo
+# 향후 Jenkins에서 VITE 빌드하는 부분을
+# 도커파일에서 하도록 수정하여
+# CI 서버 의존성을 줄이자

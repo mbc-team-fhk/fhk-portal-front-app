@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">Bot Traffic Result placeholder</title>
+  <desc id="desc">Placeholder for bot traffic test summary graph.</desc>
+  <rect width="960" height="540" fill="#f8fafc"/>
+  <rect x="32" y="32" width="896" height="476" rx="8" fill="#ffffff" stroke="#334155" stroke-width="2"/>
+  <text x="70" y="96" fill="#0f172a" font-family="Arial, sans-serif" font-size="32" font-weight="700">봇 트래픽 테스트 결과</text>
+  <text x="70" y="134" fill="#475569" font-family="Arial, sans-serif" font-size="18">봇 테스트 결과 요약 그래프 PNG 슬롯</text>
+  <line x1="128" y1="398" x2="834" y2="398" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="128" y1="188" x2="128" y2="398" stroke="#94a3b8" stroke-width="2"/>
+  <rect x="188" y="294" width="78" height="104" rx="4" fill="#60a5fa"/>
+  <rect x="328" y="242" width="78" height="156" rx="4" fill="#2563eb"/>
+  <rect x="468" y="210" width="78" height="188" rx="4" fill="#1d4ed8"/>
+  <rect x="608" y="276" width="78" height="122" rx="4" fill="#f97316"/>
+  <rect x="748" y="334" width="78" height="64" rx="4" fill="#22c55e"/>
+  <g fill="#334155" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">
+    <text x="227" y="428">RPS</text>
+    <text x="367" y="428">Peak</text>
+    <text x="507" y="428">Lock</text>
+    <text x="647" y="428">Fail</text>
+    <text x="787" y="428">OK</text>
+  </g>
+  <text x="480" y="480" fill="#334155" font-family="Arial, sans-serif" font-size="20" text-anchor="middle">PNG 파일로 교체 예정: bot-traffic-result.png</text>
+</svg>

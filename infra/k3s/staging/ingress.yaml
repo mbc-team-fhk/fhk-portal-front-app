@@ -4,29 +4,25 @@ metadata:
   name: fhk-portal-front-app-ingress
   namespace: staging
   annotations:
+    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
-  ingressClassName: traefik
   tls:
     - hosts:
-        - www.fhk-team.org
-        - fhk-team.org
+        - qa.fhk-team.org
       secretName: fhk-team-org-tls
   rules:
-    - host: www.fhk-team.org
+    - host: qa.fhk-team.org
       http:
         paths:
-          - path: /qa
+          - path: /api
             pathType: Prefix
             backend:
               service:
-                name: fhk-portal-front-app
+                name: fhk-bff-server
                 port:
                   number: 80
-    - host: fhk-team.org
-      http:
-        paths:
-          - path: /qa
+          - path: /
             pathType: Prefix
             backend:
               service:
