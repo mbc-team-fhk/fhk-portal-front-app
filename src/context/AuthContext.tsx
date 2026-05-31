@@ -13,7 +13,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:4000" : "");
 const API_PREFIX = "/api/security";
 const API_ROUTING_URL = API_BASE + API_PREFIX;
 const AUTH_REQUEST_TIMEOUT_MS = 10000;

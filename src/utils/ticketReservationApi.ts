@@ -8,7 +8,7 @@ import type {
 import type { ApiResponse } from "../types/wrapper";
 import { notifyAuthSessionExpired } from "./authSession";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:4000" : "");
 const RESERVATION_API_BASE = `${API_BASE}/api/ticketing/reservation`;
 const PAYMENT_API_BASE = `${API_BASE}/api/ticketing/payment`;
 

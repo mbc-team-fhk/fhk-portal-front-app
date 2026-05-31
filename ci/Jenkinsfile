@@ -52,7 +52,7 @@ pipeline {
                     }
 
                     if (env.BRANCH_NAME == 'staging') {
-                        env.VITE_API_BASE_URL = 'https://qa.fhk-team.org'
+                        env.VITE_API_BASE_URL = ''
                         env.VITE_OAUTH_KAKAO_JS_KEY = ''
                         env.VITE_OAUTH_KAKAO_REDIRECT_URL = 'https://qa.fhk-team.org/redirect/kakao'
                         env.VITE_OAUTH_GOOGLE_CLIENT_ID = ''
@@ -60,7 +60,7 @@ pipeline {
                     }
 
                     if (env.BRANCH_NAME == 'prod') {
-                        env.VITE_API_BASE_URL = 'https://fhk-team.org'
+                        env.VITE_API_BASE_URL = ''
                         env.VITE_OAUTH_KAKAO_JS_KEY = ''
                         env.VITE_OAUTH_KAKAO_REDIRECT_URL = 'https://fhk-team.org/redirect/kakao'
                         env.VITE_OAUTH_GOOGLE_CLIENT_ID = ''
