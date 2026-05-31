@@ -20,8 +20,8 @@ type AvailabilityResponse = {
     available: boolean;
 };
 
-const TESTER_TOOLTIP_TEXT = "포트폴리오 시연용 계정으로 바로 로그인합니다.";
-const TESTER_LOGIN_ID = "tester01";
+const TESTER_TOOLTIP_TEXT = "포트폴리오 시연용 테스터 계정 중 하나로 바로 로그인합니다.";
+const TESTER_LOGIN_IDS = Array.from({ length: 10 }, (_, index) => `tester${String(index + 1).padStart(2, "0")}`);
 const TESTER_LOGIN_PASSWORD = "tester1234";
 
 function isValidLoginId(value: string) {
@@ -355,6 +355,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     };
 
     const handleTesterLogin = async () => {
+        const testerLoginId = TESTER_LOGIN_IDS[Math.floor(Math.random() * TESTER_LOGIN_IDS.length)];
+
         setSubmitting(true);
         setSigninMessage("");
         setSigninMessageTone("error");
@@ -362,7 +364,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         setGlobalMessageTone("error");
 
         try {
-            await login(TESTER_LOGIN_ID, TESTER_LOGIN_PASSWORD);
+            await login(testerLoginId, TESTER_LOGIN_PASSWORD);
             onClose();
         } catch (error) {
             setSigninMessage(readErrorMessage(error, "테스터 로그인에 실패했습니다."));

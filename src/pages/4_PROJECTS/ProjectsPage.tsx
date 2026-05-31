@@ -5,6 +5,7 @@ import type { Project } from "../../types/portal.ts";
 
 type ProjectItem = Project & {
     published: boolean;
+    openDisabled?: boolean;
     preview: string;
     previewImage: string;
     mediaTabs: MediaTabItem[];
@@ -70,6 +71,7 @@ const projects: ProjectItem[] = [
         protected: true,
         path: "/projects/realtime-chat",
         published: true,
+        openDisabled: true,
         preview: "채팅방 · 실시간 메시지 · 브로드캐스트 · 이벤트 처리",
         previewImage: "/images/projects/realtime-chat-preview.svg",
         mediaTabs: [
@@ -95,6 +97,7 @@ const projects: ProjectItem[] = [
         protected: true,
         path: "/projects/payment-gateway",
         published: true,
+        openDisabled: true,
         preview: "PG 승인 · 콜백 검증 · 결제 상태 동기화 · 실패 보상",
         previewImage: "/images/projects/payment-gateway-preview.svg",
         mediaTabs: [
@@ -198,8 +201,15 @@ export default function ProjectsPage() {
                                 </ul>
                                 <TechStackBadges items={selectedProject.techStack} className="project-tech-stack"/>
                                 <div className="hero-actions">
-                                    <Link to={selectedProject.path} className="primary-button link-button">프로젝트
-                                        열기</Link>
+                                    {selectedProject.openDisabled ? (
+                                        <button type="button" className="primary-button link-button" disabled>
+                                            프로젝트 열기
+                                        </button>
+                                    ) : (
+                                        <Link to={selectedProject.path} className="primary-button link-button">
+                                            프로젝트 열기
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
                         </article>
